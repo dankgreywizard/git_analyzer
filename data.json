@@ -1,0 +1,18 @@
+{
+  "products" : [
+    {
+      "id": 1 ,
+      "name": "Kayak",
+      "category": "Recreation",
+      "description" : "A boat for one person.",
+      "price" : 275
+    },
+    {
+      "id" : 2,
+      "name" : "Life jacket",
+      "category" : "Safety",
+      "description" : "Protective outerwear for a boat or other watercraft.",
+      "price" : 50
+    }
+  ]
+}
