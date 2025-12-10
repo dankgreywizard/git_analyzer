@@ -3,14 +3,38 @@
 <head>
   <script src="bundle.js"></script>
   <link href="css/bootstrap.min.css" rel="stylesheet" />
+  <style>
+    /* Ensure the page itself can scroll */
+    html, body { height: 100%; }
+    body {
+      overflow-y: auto;              /* show vertical scrollbar when needed */
+      overflow-x: hidden;            /* prevent accidental horizontal scroll */
+      -webkit-overflow-scrolling: touch; /* smoother scroll on iOS */
+    }
+    /* Make multi-line responses easier to read */
+    .table th, .table td { vertical-align: top; }
+    #body {
+      white-space: pre-wrap;           /* preserve new lines and wrap long ones */
+      overflow: auto;                  /* allow scrolling for long responses */
+      max-height: 50vh;                /* keep the table from growing too tall */
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+      line-height: 1.3;
+      word-break: break-word;          /* break very long tokens/words if needed */
+    }
+    #msg { white-space: pre-wrap; }
+  </style>
 </head>
 <body>
 <div class="m-2">
   <label class="form-label">Message:</label>
   <input id="input" class="form-control" />
 </div>
-<button id="btn" class="btn btn-primary m-2">Send Message</button>
-<table class="table table-striped">
+<div class="m-2">
+  <button id="btn" class="btn btn-primary me-2">Send Message</button>
+  <button id="cancel" class="btn btn-outline-secondary" disabled>Cancel</button>
+  <small class="text-muted ms-2">You can cancel a long response.</small>
+  </div>
+<table class="table table-striped table-sm">
   <tbody>
   <tr><th>Status</th><td id="msg"></td></tr>
   <tr><th>Response</th><td id="body"></td></tr>

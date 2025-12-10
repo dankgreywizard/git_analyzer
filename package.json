@@ -3,9 +3,9 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "server": "tsc-watch --noClear --onsuccess \"node dist/server.js\"",
+    "server": "tsc -p tsconfig.json && node dist/server.js",
     "client": "webpack serve",
-    "start": "npm-run-all --parallel server client",
+    "start": "node tools/dev.js",
     "test": "node --test --watch dist"
   },
   "keywords": [],

@@ -13,13 +13,17 @@ export const ollamaResponse = async (req: Request, resp: Response) => {
         model: 'codellama:latest',
         messages: messageArray,
         think: false,
+        stream: true,
     });
     console.log("returning response");
-    //for await (const part of response) {
-      //  console.log("writing part of the response");
-      // resp.write(part.message.content)
-   // }
-    resp.write(response.message.content);
-    console.log(response.message.content);
+    // Stream chunks as they arrive
+    // Ensure a text content type for incremental rendering
+    resp.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    for await (const part of response) {
+        const chunk = (part && (part as any).message && (part as any).message.content) ?? (part as any).response ?? '';
+        if (chunk) {
+            resp.write(chunk);
+        }
+    }
     resp.end();
 }
