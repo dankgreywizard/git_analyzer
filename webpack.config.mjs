@@ -9,12 +9,19 @@ export default {
         path: path.resolve(__dirname, "dist/client"),
         filename: "bundle.js"
     },
-    "devServer": {
-        port:5100,
-        static:["./static", "node_modules/bootstrap/dist"],
-        //proxy: {
-        //    "/read" : "http://localhost:5000"
-        //}
+    devServer: {
+        port: 5100,
+        static: {
+            directory: path.resolve(__dirname, "static"),
+            publicPath: "/"
+        },
+        proxy: [
+            {
+                context: ["/read"],
+                target: "http://localhost:5000",
+                changeOrigin: true
+            }
+        ],
         client: {
             webSocketURL: "http://localhost:5000/ws"
         }

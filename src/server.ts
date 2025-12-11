@@ -5,12 +5,13 @@ import cors from "cors";
 import httpProxy from "http-proxy";
 
 const port = 5000;
+const webpackPort = process.env.WDS_PORT || '5100';
 
 const expressApp: Express = express();
 const proxy = httpProxy.createServer({
-    target: "http://localhost:5100", ws: true
+    target: `http://localhost:${webpackPort}`, ws: true
 });
-expressApp.use(cors({origin: "http://localhost:5100"}));
+expressApp.use(cors({origin: `http://localhost:${webpackPort}`}));
 expressApp.use(express.json());
 
 expressApp.post("/read", ollamaResponse);

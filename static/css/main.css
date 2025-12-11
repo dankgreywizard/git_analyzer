@@ -1,0 +1,140 @@
+/* Custom styles for AI Chat Interface */
+
+/* Base styles */
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Chat message animations */
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Message content styling */
+.message-content {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  line-height: 1.6;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
+  font-size: 0.9rem;
+}
+
+/* Custom scrollbar */
+#chat-container::-webkit-scrollbar {
+  width: 8px;
+}
+
+#chat-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+#chat-container::-webkit-scrollbar-thumb {
+  background-color: #d1d5db;
+  border-radius: 9999px;
+}
+
+#chat-container::-webkit-scrollbar-thumb:hover {
+  background-color: #9ca3af;
+}
+
+
+/* Ensure textarea auto-resize works */
+#input {
+  min-height: 44px;
+  max-height: 150px;
+  overflow-y: auto;
+  padding-right: 3.5rem !important; /* Make room for send button */
+}
+
+/* Focus styles */
+#input:focus {
+  outline: none;
+  ring: 2px;
+  ring-color: #3b82f6;
+  border-color: transparent;
+}
+
+/* Button hover effects */
+button:not(:disabled):hover {
+  transform: translateY(-1px);
+  transition: transform 0.2s;
+}
+
+button:not(:disabled):active {
+  transform: scale(0.95);
+}
+
+/* Smooth scrolling */
+* {
+  scroll-behavior: smooth;
+}
+
+/* Sidebar scrollbar */
+#chat-history-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+#chat-history-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+#chat-history-list::-webkit-scrollbar-thumb {
+  background-color: #d1d5db;
+  border-radius: 9999px;
+}
+
+#chat-history-list::-webkit-scrollbar-thumb:hover {
+  background-color: #9ca3af;
+}
+
+/* Modal scrollbar */
+#modal-chat-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+#modal-chat-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+#modal-chat-content::-webkit-scrollbar-thumb {
+  background-color: #d1d5db;
+  border-radius: 9999px;
+}
+
+#modal-chat-content::-webkit-scrollbar-thumb:hover {
+  background-color: #9ca3af;
+}
+
+/* Modal animations */
+#chat-modal {
+  animation: fadeIn 0.2s ease-in;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+#chat-modal > div {
+  animation: slideUp 0.3s ease-out;
+}
+

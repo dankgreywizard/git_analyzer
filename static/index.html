@@ -1,44 +1,151 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <script src="bundle.js"></script>
-  <link href="css/bootstrap.min.css" rel="stylesheet" />
-  <style>
-    /* Ensure the page itself can scroll */
-    html, body { height: 100%; }
-    body {
-      overflow-y: auto;              /* show vertical scrollbar when needed */
-      overflow-x: hidden;            /* prevent accidental horizontal scroll */
-      -webkit-overflow-scrolling: touch; /* smoother scroll on iOS */
-    }
-    /* Make multi-line responses easier to read */
-    .table th, .table td { vertical-align: top; }
-    #body {
-      white-space: pre-wrap;           /* preserve new lines and wrap long ones */
-      overflow: auto;                  /* allow scrolling for long responses */
-      max-height: 50vh;                /* keep the table from growing too tall */
-      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
-      line-height: 1.3;
-      word-break: break-word;          /* break very long tokens/words if needed */
-    }
-    #msg { white-space: pre-wrap; }
-  </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Git Review Assistant</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+  <link rel="stylesheet" href="css/main.css">
 </head>
-<body>
-<div class="m-2">
-  <label class="form-label">Message:</label>
-  <input id="input" class="form-control" />
-</div>
-<div class="m-2">
-  <button id="btn" class="btn btn-primary me-2">Send Message</button>
-  <button id="cancel" class="btn btn-outline-secondary" disabled>Cancel</button>
-  <small class="text-muted ms-2">You can cancel a long response.</small>
+<body class="bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen">
+  <div class="flex h-screen">
+    <!-- Sidebar for Chat History -->
+    <aside id="chat-sidebar" class="w-64 bg-white border-r border-gray-200 flex flex-col md:flex hidden absolute md:relative z-40 h-full">
+      <div class="p-4 border-b border-gray-200">
+        <h2 class="text-lg font-semibold text-gray-900">Chat History</h2>
+      </div>
+      <div id="chat-history-list" class="flex-1 overflow-y-auto p-2">
+        <!-- Chat history items will be inserted here -->
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <div class="flex flex-col flex-1 w-full">
+    <!-- Header -->
+    <header class="bg-white shadow-sm border-b border-gray-200 px-6 py-4">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+          <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+            </svg>
+          </div>
+          <div>
+            <h1 class="text-xl font-bold text-gray-900">Git Review Assistant</h1>
+            <p class="text-sm text-gray-500">powered by dankgreywizard</p>
+          </div>
+        </div>
+        <div class="flex items-center space-x-3">
+          <button 
+            id="new-chat-btn" 
+            class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 flex items-center space-x-2"
+            title="Start new chat"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+            </svg>
+            <span>New Chat</span>
+          </button>
+          <button 
+            id="sidebar-toggle" 
+            class="md:hidden p-2 text-gray-600 hover:bg-gray-100 rounded-lg"
+            title="Toggle chat history"
+          >
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+          <div id="status-indicator" class="flex items-center space-x-2">
+            <div class="w-2 h-2 bg-gray-400 rounded-full"></div>
+            <span class="text-sm text-gray-500">Ready</span>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Chat Messages Container -->
+    <div id="chat-container" class="flex-1 overflow-y-auto px-6 py-6 space-y-4">
+      <div class="text-center text-gray-500 py-12">
+        <svg class="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+        </svg>
+        <p class="text-lg font-medium">Start a conversation</p>
+        <p class="text-sm mt-1">Ask me anything and I'll help you out!</p>
+      </div>
+    </div>
+
+    <!-- Input Area -->
+    <div class="bg-white border-t border-gray-200 px-6 py-4">
+      <div class="flex items-end space-x-3">
+        <div class="flex-1 relative">
+          <textarea 
+            id="input" 
+            rows="1"
+            placeholder="Type your message here..."
+            class="w-full px-4 py-3 pr-14 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none transition-all duration-200 bg-gray-50 focus:bg-white"
+            style="padding-right: 3.5rem;"
+          ></textarea>
+          <button 
+            id="send-btn" 
+            class="absolute right-2 bottom-2 p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Send message"
+          >
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+            </svg>
+          </button>
+        </div>
+        <button 
+          id="cancel-btn" 
+          class="px-4 py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed hidden"
+        >
+          Cancel
+        </button>
+      </div>
+      <div class="mt-2 flex items-center justify-between text-xs text-gray-500">
+        <span>Press Enter to send, Shift+Enter for new line</span>
+        <span id="char-count" class="text-gray-400">0 characters</span>
+      </div>
+    </div>
+    </div>
   </div>
-<table class="table table-striped table-sm">
-  <tbody>
-  <tr><th>Status</th><td id="msg"></td></tr>
-  <tr><th>Response</th><td id="body"></td></tr>
-  </tbody>
-</table>
+
+  <!-- Modal for Viewing Past Chats -->
+  <div id="chat-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden items-center justify-center p-4">
+    <div class="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col">
+      <div class="p-6 border-b border-gray-200 flex items-center justify-between">
+        <div>
+          <h3 id="modal-chat-title" class="text-xl font-bold text-gray-900">Chat History</h3>
+          <p id="modal-chat-timestamp" class="text-sm text-gray-500 mt-1"></p>
+        </div>
+        <div class="flex items-center space-x-2">
+          <button 
+            id="load-chat-btn" 
+            class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 flex items-center space-x-2"
+            title="Continue this chat"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            <span>Continue Chat</span>
+          </button>
+          <button 
+            id="close-modal-btn" 
+            class="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      </div>
+      <div id="modal-chat-content" class="flex-1 overflow-y-auto p-6 space-y-4">
+        <!-- Past chat messages will be displayed here -->
+      </div>
+    </div>
+  </div>
+
+  <script src="bundle.js"></script>
 </body>
 </html>

@@ -6,3 +6,13 @@ coverage/
 .vscode/
 .DS_Store
 Thumbs.db
+.env
+.env.local
+*.tsbuildinfo
+.cache/
+*.log
+*.map
+.webpack/
+.postcss-cache/
+*.swp
+*.swo
