@@ -2,5 +2,8 @@
 <project version="4">
   <component name="VcsDirectoryMappings">
     <mapping directory="$PROJECT_DIR$" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/repos/isomorphic-git-isomorphic-git-git" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/repos/ollama-ollama-git" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/repos/ollama4j-ollama4j-git" vcs="Git" />
   </component>
 </project>

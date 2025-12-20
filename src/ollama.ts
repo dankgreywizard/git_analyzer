@@ -1,4 +1,4 @@
-import ollama, {Message} from 'ollama';
+import ollama from 'ollama';
 import {Request, Response} from "express";
 
 export const ollamaResponse = async (req: Request, resp: Response) => {
