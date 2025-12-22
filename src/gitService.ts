@@ -1,0 +1,181 @@
+import git from 'isomorphic-git';
+import http from 'isomorphic-git/http/node';
+import fs from 'fs';
+
+export interface CloneOptions {
+  depth?: number;
+  singleBranch?: boolean;
+  ref?: string;
+}
+
+export interface LogOptions {
+  ref?: string;
+  depth?: number;
+}
+
+export class GitService {
+  private readonly reposBase: string;
+  private readonly defaultDepth: number;
+
+  constructor(config?: { reposBase?: string; defaultDepth?: number }) {
+    this.reposBase = this.norm(config?.reposBase ?? 'repos');
+    this.defaultDepth = config?.defaultDepth ?? 25;
+  }
+
+  // Public API
+  async cloneRepo(url: string, dir?: string, options?: CloneOptions): Promise<{ dir: string }> {
+    if (!url) throw new Error('Missing url');
+    const targetDir = this.resolveTargetDir(url, dir);
+    await this.ensureDir(targetDir);
+    await git.clone({
+      fs,
+      http,
+      dir: targetDir,
+      url,
+      singleBranch: options?.singleBranch ?? true,
+      depth: options?.depth ?? this.defaultDepth,
+      // If ref provided (e.g., branch), pass it along
+      ...(options?.ref ? { ref: options.ref } : {}),
+    } as any);
+    return { dir: targetDir };
+  }
+
+  // Returns commits plus a list of changed files for each commit (vs first parent)
+  async readLogWithFiles(dir: string, options?: LogOptions): Promise<{ commits: any[]; note?: string }>{
+    const normDir = this.norm(dir);
+    if (!this.isUnderRepos(normDir)) {
+      throw new Error('dir must be under repos/');
+    }
+    const ref = options?.ref ?? 'HEAD';
+    const depth = options?.depth ?? this.defaultDepth;
+
+    const resolved = await this.resolveRefSafe(normDir, ref);
+    if (!resolved) {
+      return { commits: [], note: `Ref ${ref} not found in ${normDir}` };
+    }
+    // Ensure the local shallow clone has enough history for the requested depth.
+    // If the repo was cloned with a smaller depth, deepen it before reading the log.
+    await this.deepenIfNeeded(normDir, ref, depth).catch(() => {});
+    const baseCommits = await git.log({ fs, dir: normDir, ref: resolved, depth });
+    const result: any[] = [];
+    for (const c of baseCommits) {
+      const oid = (c as any).oid;
+      const parents: string[] = (c as any).commit?.parent || [];
+      const parentOid = parents[0] || undefined;
+      let files: any[] = [];
+      try {
+        files = parentOid ? await this.listChangedFiles(normDir, parentOid, oid) : await this.listChangedFiles(normDir, undefined, oid);
+      } catch {
+        files = [];
+      }
+      result.push({
+        oid,
+        commit: (c as any).commit,
+        author: (c as any).author,
+        committer: (c as any).committer,
+        message: (c as any).commit?.message,
+        files,
+      });
+    }
+    return { commits: result };
+  }
+
+  private async listChangedFiles(dir: string, oldOid: string | undefined, newOid: string): Promise<Array<{ path: string; status: 'added'|'modified'|'deleted' }>> {
+    // Use isomorphic-git walk over two TREE snapshots
+    const trees: any[] = [];
+    const TREE: any = (git as any).TREE;
+    if (oldOid) {
+      trees.push(TREE({ ref: oldOid }));
+    } else {
+      trees.push(null);
+    }
+    trees.push(TREE({ ref: newOid }));
+    const entries: any[] = await (git as any).walk({
+      fs,
+      dir,
+      trees,
+      map: async (filepath: string, [A, B]: any[]) => {
+        if (filepath === '.') return;
+        // Skip directories
+        const typeA = A ? await A.type() : null;
+        const typeB = B ? await B.type() : null;
+        if (typeA === 'tree' || typeB === 'tree') return;
+        const oidA = A ? await A.oid() : undefined;
+        const oidB = B ? await B.oid() : undefined;
+        if (oidA === oidB) return;
+        let status: 'added'|'modified'|'deleted' = 'modified';
+        if (A && !B) status = 'deleted';
+        else if (!A && B) status = 'added';
+        return { path: filepath, status };
+      }
+    });
+    return entries.filter(Boolean);
+  }
+
+  // Helpers
+  sanitizeRepoName(url: string): string {
+    try {
+      const u = new URL(url);
+      const parts = u.pathname.split('/').filter(Boolean);
+      let name = parts.slice(-1)[0] || 'repo';
+      if (name.endsWith('.git')) name = name.slice(0, -4);
+      return (parts.slice(-2).join('-') || name).replace(/[^a-zA-Z0-9_-]/g, '-');
+    } catch {
+      return url.replace(/[^a-zA-Z0-9_-]/g, '-').slice(0, 50) || 'repo';
+    }
+  }
+
+  private resolveTargetDir(url: string, dir?: string): string {
+    const base = this.reposBase;
+    const chosen = dir && dir.trim().length > 0 ? this.norm(dir) : `${base}/${this.sanitizeRepoName(url)}`;
+    if (!this.isUnderRepos(chosen)) {
+      throw new Error('dir must be under repos/');
+    }
+    return chosen;
+  }
+
+  private async ensureDir(dir: string): Promise<void> {
+    await fs.promises.mkdir(dir, { recursive: true });
+  }
+
+  private isUnderRepos(dir: string): boolean {
+    const d = this.norm(dir);
+    const b = this.reposBase.endsWith('/') ? this.reposBase : `${this.reposBase}/`;
+    return d === this.reposBase || d.startsWith(b);
+  }
+
+  private norm(p: string): string {
+    return p.replace(/\\/g, '/').replace(/\/+/g, '/').replace(/\/$/, '');
+  }
+
+  private async resolveRefSafe(dir: string, ref: string): Promise<string | null> {
+    return git.resolveRef({ fs, dir, ref }).catch(() => null);
+  }
+
+  private async deepenIfNeeded(dir: string, ref: string, depth?: number): Promise<void> {
+    if (!depth || depth <= 0) return;
+    try {
+      // Determine branch to fetch. If ref is HEAD or an OID, fall back to current branch.
+      let branch = ref;
+      if (!branch || branch === 'HEAD' || /[0-9a-f]{7,}/i.test(branch)) {
+        const current = await (git as any).currentBranch({ fs, dir, fullname: false }).catch(() => null);
+        if (current) branch = current;
+      }
+      await (git as any).fetch({
+        fs,
+        http,
+        dir,
+        remote: 'origin',
+        // If branch is still unknown, omit ref to fetch the current branch
+        ...(branch && branch !== 'HEAD' ? { ref: branch } : {}),
+        singleBranch: true,
+        depth,
+        tags: false,
+      });
+    } catch {
+      // Best-effort deepen; ignore failures (e.g., no network or detached HEAD)
+    }
+  }
+}
+
+export default GitService;

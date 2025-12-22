@@ -1,7 +1,29 @@
+// Client no longer performs git operations directly in the browser.
+// Git clone is handled server-side via /api/clone.
+
+
 let currentAbortController = null;
 let messageHistory = [];
 let currentChatId = null;
 let chatHistory = [];
+
+// Base directory on server where repos will be cloned
+const REPOS_BASE_DIR = 'repos';
+
+function sanitizeRepoName(url) {
+    try {
+        const u = new URL(url);
+        const parts = u.pathname.split('/').filter(Boolean);
+        let name = parts.slice(-1)[0] || 'repo';
+        if (name.endsWith('.git')) name = name.slice(0, -4);
+        return (parts.slice(-2).join('-') || name).replace(/[^a-zA-Z0-9_-]/g, '-');
+    } catch {
+        return url.replace(/[^a-zA-Z0-9_-]/g, '-').slice(0, 50) || 'repo';
+    }
+}
+
+// No CORS proxy needed — cloning happens on the server.
+function withCorsProxy(url) { return url; }
 
 // DOM Elements
 const chatContainer = document.getElementById('chat-container');
@@ -21,6 +43,10 @@ const modalChatContent = document.getElementById('modal-chat-content');
 const modalChatTitle = document.getElementById('modal-chat-title');
 const modalChatTimestamp = document.getElementById('modal-chat-timestamp');
 let currentViewedChat = null;
+// Repo cloning controls
+const repoUrlInput = document.getElementById('repo-url');
+const cloneBtn = document.getElementById('clone-btn');
+const logBtn = document.getElementById('log-btn');
 
 // Initialize
 document.addEventListener('DOMContentLoaded', function() {
@@ -38,6 +64,34 @@ function setupEventListeners() {
     sidebarToggle.addEventListener('click', toggleSidebar);
     closeModalBtn.addEventListener('click', closeModal);
     loadChatBtn.addEventListener('click', loadChatIntoInterface);
+    if (cloneBtn) {
+        cloneBtn.addEventListener('click', () => {
+            const url = repoUrlInput?.value?.trim();
+            if (!url) {
+                updateStatus('Enter a repository URL', 'yellow');
+                return;
+            }
+            cloneRepository(url).catch((e) => console.error(e));
+        });
+    }
+    if (logBtn) {
+        logBtn.addEventListener('click', () => {
+            const url = repoUrlInput?.value?.trim();
+            if (!url) {
+                updateStatus('Enter a repository URL', 'yellow');
+                return;
+            }
+            readGitLog(url).catch((e) => console.error(e));
+        });
+    }
+    if (repoUrlInput) {
+        repoUrlInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                cloneBtn?.click();
+            }
+        });
+    }
     
     // Close modal on background click
     chatModal.addEventListener('click', (e) => {
@@ -81,6 +135,77 @@ function updateStatus(status, color = 'gray') {
     
     indicator.className = `w-2 h-2 ${color === 'green' ? 'bg-green-500' : color === 'yellow' ? 'bg-yellow-500 animate-pulse' : 'bg-gray-400'} rounded-full`;
     text.textContent = status;
+}
+
+async function cloneRepository(url) {
+    const name = sanitizeRepoName(url);
+    const dir = `${REPOS_BASE_DIR}/${name}`;
+    const remoteUrl = withCorsProxy(url);
+
+    updateStatus('Cloning…', 'yellow');
+    addSystemMessage(`Cloning ${url} into ${dir} …`);
+    try {
+        const resp = await fetch('/api/clone', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url: remoteUrl, dir })
+        });
+        if (!resp.ok) {
+            const t = await resp.text();
+            throw new Error(t || resp.statusText);
+        }
+        const data = await resp.json();
+        updateStatus('Clone complete', 'green');
+        addSystemMessage(`✅ Clone complete: ${data.dir || dir}`);
+    } catch (err) {
+        console.error('Clone failed', err);
+        updateStatus('Clone failed', 'gray');
+        addSystemMessage(`❌ Clone failed: ${err?.message || String(err)}`);
+    }
+}
+
+async function readGitLog(url, depth = 20) {
+    const name = sanitizeRepoName(url);
+    const dir = `${REPOS_BASE_DIR}/${name}`;
+    updateStatus('Reading log…', 'yellow');
+    addSystemMessage(`Reading git log from ${dir} …`);
+    try {
+        const qs = new URLSearchParams({ dir, depth: String(depth) });
+        const resp = await fetch(`/api/log?${qs.toString()}`);
+        if (!resp.ok) {
+            const t = await resp.text();
+            throw new Error(t || resp.statusText);
+        }
+        const data = await resp.json();
+        const commits = Array.isArray(data.commits) ? data.commits : [];
+        if (commits.length === 0) {
+            addSystemMessage(`No commits found. ${data.note ? '(' + data.note + ')' : ''}`);
+            updateStatus('Ready', 'green');
+            return;
+        }
+
+        // Format a concise log list
+        const lines = commits.map((c) => {
+            const sha = (c.oid || c.commit?.oid || '').toString().slice(0, 7);
+            const author = c.commit?.author?.name || 'unknown';
+            const msg = (c.commit?.message || '').split('\n')[0];
+            const date = c.commit?.author?.timestamp
+                ? new Date(c.commit.author.timestamp * 1000).toISOString().slice(0, 10)
+                : '';
+            return `- ${msg} (${sha}) by ${author} ${date ? 'on ' + date : ''}`;
+        }).join('\n');
+
+        addSystemMessage(`Git log for ${name} (latest ${commits.length}):\n${lines}`);
+        updateStatus('Ready', 'green');
+    } catch (err) {
+        console.error('Read log failed', err);
+        updateStatus('Error', 'gray');
+        addSystemMessage(`❌ Read log failed: ${err?.message || String(err)}`);
+    }
+}
+
+function addSystemMessage(text) {
+    addMessage(text, 'assistant');
 }
 
 function addMessage(content, role = 'user') {

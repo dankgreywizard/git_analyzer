@@ -4,10 +4,33 @@
 const { spawn } = require('child_process');
 
 // Choose a Webpack Dev Server port; avoid collisions with default 5100
-const WDS_PORT = process.env.WDS_PORT || '5101';
+const net = require('net');
 
-function run(name, cmd, args, options = {}) {
-  const env = { ...process.env, WDS_PORT };
+async function findFreePort(startPort = 5101, attempts = 20) {
+  const tryPort = (port) => new Promise((resolve) => {
+    const server = net.createServer()
+      .once('error', () => resolve(null))
+      .once('listening', () => {
+        server.close(() => resolve(port));
+      })
+      .listen(port, '0.0.0.0');
+  });
+
+  for (let i = 0; i < attempts; i++) {
+    const port = startPort + i;
+    // If an explicit env port is set, just return it (even if taken) so errors surface clearly
+    if (process.env.WDS_PORT) return parseInt(process.env.WDS_PORT, 10);
+    // Otherwise probe for a free port
+    // eslint-disable-next-line no-await-in-loop
+    const free = await tryPort(port);
+    if (free) return free;
+  }
+  // Fall back to the start port if none found
+  return startPort;
+}
+
+async function run(name, cmd, args, options = {}, extraEnv = {}) {
+  const env = { ...process.env, ...extraEnv };
   const child = spawn(cmd, args, { stdio: 'inherit', shell: process.platform === 'win32', env, ...options });
   child.on('exit', (code, signal) => {
     if (signal) {
@@ -44,6 +67,15 @@ process.on('SIGINT', onSigInt);
 process.on('SIGTERM', onSigTerm);
 
 // Use npm to run scripts so local binaries (node_modules/.bin) are resolved.
-children.push(run('server', 'npm', ['run', 'server']));
-// Launch webpack dev server explicitly with chosen port to avoid conflicts
-children.push(run('client', 'npx', ['webpack', 'serve', '--port', WDS_PORT]));
+(async () => {
+  // Determine shared ports once
+  const backendPort = process.env.PORT ? parseInt(process.env.PORT, 10) : await findFreePort(5000);
+  const wdsPort = process.env.WDS_PORT ? parseInt(process.env.WDS_PORT, 10) : await findFreePort(5101);
+
+  const sharedEnv = { PORT: String(backendPort), WDS_PORT: String(wdsPort) };
+
+  // Start server first
+  children.push(await run('server', 'npm', ['run', 'server'], {}, sharedEnv));
+  // Start webpack dev server with the chosen port (also passed in env for config access if needed)
+  children.push(await run('client', 'npx', ['webpack', 'serve', '--port', String(wdsPort)], {}, sharedEnv));
+})();
