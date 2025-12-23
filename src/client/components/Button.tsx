@@ -17,8 +17,21 @@ const sizes = {
   icon: "p-2",
 };
 
+type Variant = keyof typeof variants;
+type Size = keyof typeof sizes;
+
+interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  as?: React.ElementType;
+  variant?: Variant;
+  size?: Size;
+  loading?: boolean;
+  leftIcon?: React.ReactNode;
+  rightIcon?: React.ReactNode;
+  fullWidth?: boolean;
+}
+
 export default function Button({
-  as = "button",
+  as: Comp = "button",
   variant = "primary",
   size = "md",
   className = "",
@@ -28,14 +41,15 @@ export default function Button({
   fullWidth = false,
   children,
   ...props
-}) {
-  const Comp = as;
+}: ButtonProps) {
+  const compProps = Comp === "button" ? { type: "button" as const } : {};
   return (
     <Comp
       className={`${base} ${variants[variant] ?? variants.primary} ${sizes[size] ?? sizes.md} ${
         fullWidth ? "w-full" : ""
       } ${className}`}
       aria-busy={loading || undefined}
+      {...compProps}
       {...props}
     >
       {leftIcon ? <span className="mr-2">{leftIcon}</span> : null}

@@ -5,7 +5,8 @@ A modern web application that combines local AI capabilities with Git repository
 ## 🚀 Features
 
 - **Git Operations**: Clone public repositories and view commit history directly from the web interface.
-- **AI-Powered Analysis**: Integrated with [Ollama](https://ollama.com/) to provide intelligent summaries and risk assessments of Git commits.
+- **AI-Powered Analysis**: Support for local LLMs (via [Ollama](https://ollama.com/)) and upcoming support for external AI providers like OpenAI (ChatGPT) and Anthropic (Claude).
+- **Flexible LLM Integration**: Analyze commits for risks, summaries, and testing suggestions using your preferred AI model.
 - **Streaming Responses**: Real-time AI response streaming for a better user experience.
 - **Modern UI**: Built with React, featuring Tailwind CSS v4, Bootstrap 5, and smooth animations using AOS and Animate.css.
 - **Git Console**: Interactive console for monitoring Git operations.
@@ -15,7 +16,7 @@ A modern web application that combines local AI capabilities with Git repository
 ### Backend
 - **Node.js & Express**: Core server framework.
 - **TypeScript**: Typed development for the backend.
-- **Ollama SDK**: Integration with local LLMs.
+- **LLM Integration**: Support for local models (Ollama SDK) and extensible architecture for external APIs.
 - **Isomorphic-Git**: Perform Git operations in Node.js.
 - **Http-Proxy**: Proxying requests between development servers.
 
@@ -23,14 +24,16 @@ A modern web application that combines local AI capabilities with Git repository
 - **React**: Component-based UI library.
 - **Tailwind CSS v4**: Utility-first styling with the latest features.
 - **Bootstrap 5**: Reliable UI components and grid system.
-- **Animations**: AOS (Animate On Scroll) and Animate.css.
-- **Webpack**: Module bundling and development server.
+- **Animations**: AOS (Animate On Scroll), Animate.css, and Framer Motion.
+- **Vite**: Ultra-fast frontend tooling and development server.
 - **PostCSS**: CSS transformation and Autoprefixer.
 
 ## 📋 Prerequisites
 
 - **Node.js**: v20 or higher recommended.
-- **Ollama**: Must be installed and running locally to use AI features.
+- **LLM Provider (Optional but recommended)**: 
+  - **Local**: [Ollama](https://ollama.com/) can be used for local AI features.
+  - **External**: Support for providers like ChatGPT, Claude, and others is currently being implemented.
 
 ## ⚙️ Installation & Setup
 
@@ -45,8 +48,8 @@ A modern web application that combines local AI capabilities with Git repository
    npm install
    ```
 
-3. **Start Ollama**:
-   Ensure Ollama is running and you have at least one model pulled (e.g., `codellama` or `llama3`):
+3. **Configure AI (Optional)**:
+   If using Ollama, ensure it is running and you have at least one model pulled (e.g., `codellama` or `llama3`):
    ```bash
    ollama pull codellama
    ```
@@ -61,7 +64,7 @@ To start both the backend server and frontend development server simultaneously:
 npm start
 ```
 - **Backend API**: http://localhost:5000
-- **Frontend (WDS)**: http://localhost:5100 (Proxied through the backend)
+- **Frontend (Vite)**: http://localhost:5101 (Proxied through the backend)
 
 ### Individual Scripts
 - **Start Backend**: `npm run server`
@@ -71,13 +74,17 @@ npm start
 
 ## 📂 Project Structure
 
-- `src/`: TypeScript backend source code.
-  - `services/`: Core logic for Git and Ollama integrations.
-  - `client/`: React frontend source code.
-- `frontend/`: CSS styles, animation utilities, and frontend-specific documentation.
-- `static/`: Static assets and the main HTML entry point.
+- `src/`: Core source code.
+  - `client/`: React frontend (Vite entry point: `index.tsx`).
+    - `components/`: Modularized UI components.
+  - `server/`: Express backend entry point.
+  - `services/`: Shared business logic for Git and Ollama.
+  - `types/`: Shared TypeScript interfaces between client and server.
+- `static/`: Static assets and global CSS.
+- `index.html`: Vite entry point.
 - `repos/`: (Auto-created) Directory where cloned repositories are stored.
-- `dist/`: Compiled JavaScript files.
+- `dist/`: Compiled server-side JavaScript files.
+- `tools/`: Development utilities (e.g., `dev.js`).
 
 ## 📄 License
 

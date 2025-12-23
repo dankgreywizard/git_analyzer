@@ -1,12 +1,26 @@
 import React, { useCallback, useState } from "react";
-import Button from "./Button.jsx";
+import Button from "./Button";
 
-export default function GitOperations({ onResult, updateStatus, onLogData, onBusyChange, disabled = false }) {
+interface GitOperationsProps {
+  onResult?: (result: any) => void;
+  updateStatus?: (msg: string, color?: "gray" | "yellow" | "green" | "red") => void;
+  onLogData?: (data: any) => void;
+  onBusyChange?: (busy: boolean) => void;
+  disabled?: boolean;
+}
+
+export default function GitOperations({ 
+  onResult, 
+  updateStatus, 
+  onLogData, 
+  onBusyChange, 
+  disabled = false 
+}: GitOperationsProps) {
   const [url, setUrl] = useState("");
   const [limit, setLimit] = useState(25); // number of commits to fetch (1..1000)
   const [busy, setBusy] = useState(false);
 
-  const pushResult = useCallback((entry) => {
+  const pushResult = useCallback((entry: any) => {
     onResult?.({ id: String(Date.now()) + Math.random().toString(36).slice(2), time: Date.now(), ...entry });
   }, [onResult]);
 
@@ -30,14 +44,14 @@ export default function GitOperations({ onResult, updateStatus, onLogData, onBus
       if (!res.ok) throw new Error(data?.error || "Clone failed");
       pushResult({ op: "clone", status: "success", request: { url: repoUrl }, data });
       updateStatus?.("Ready", "green");
-    } catch (e) {
+    } catch (e: any) {
       pushResult({ op: "clone", status: "error", request: { url: repoUrl }, error: e?.message || String(e) });
       updateStatus?.("Clone failed", "red");
     } finally {
       setBusy(false);
       onBusyChange?.(false);
     }
-  }, [url, pushResult, updateStatus]);
+  }, [url, pushResult, updateStatus, disabled, onBusyChange]);
 
   const handleLog = useCallback(async () => {
     const repoUrl = url.trim();
@@ -61,14 +75,14 @@ export default function GitOperations({ onResult, updateStatus, onLogData, onBus
       pushResult({ op: "log", status: "success", request: { url: repoUrl, limit: reqLimit }, data });
       onLogData?.(data);
       updateStatus?.("Ready", "green");
-    } catch (e) {
+    } catch (e: any) {
       pushResult({ op: "log", status: "error", request: { url: repoUrl, limit }, error: e?.message || String(e) });
       updateStatus?.("Log failed", "red");
     } finally {
       setBusy(false);
       onBusyChange?.(false);
     }
-  }, [url, limit, pushResult, updateStatus]);
+  }, [url, limit, pushResult, updateStatus, disabled, onBusyChange, onLogData]);
 
   return (
     <div className="space-y-4">

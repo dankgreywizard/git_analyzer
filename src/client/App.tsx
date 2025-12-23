@@ -1,87 +1,42 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import Button from "./components/Button.jsx";
-import ChatHistory from "./components/ChatHistory.jsx";
-import GitOperations from "./components/GitOperations.jsx";
-import GitConsole from "./components/GitConsole.jsx";
-import CommitList from "./components/CommitList.jsx";
+import Button from "./components/Button";
+import ChatHistory from "./components/ChatHistory";
+import GitOperations from "./components/GitOperations";
+import GitConsole from "./components/GitConsole";
+import CommitList from "./components/CommitList";
+import Status from "./components/Status";
+import ChatMessage from "./components/ChatMessage";
+import Modal from "./components/Modal";
 
-function Status({ color = "gray", text = "Ready" }) {
-  const dot = useMemo(() => ({
-    gray: "bg-gray-400",
-    yellow: "bg-yellow-500",
-    green: "bg-green-500",
-    red: "bg-red-500",
-  }[color] || "bg-gray-400"), [color]);
 
-  return (
-    <div className="flex items-center space-x-2" aria-live="polite">
-      <div className={`w-2 h-2 rounded-full ${dot}`}></div>
-      <span className="text-sm text-gray-500">{text}</span>
-    </div>
-  );
-}
-
-function ChatMessage({ role, content }) {
-  const isUser = role === "user";
-  return (
-    <div className={`max-w-3xl ${isUser ? "ml-auto" : "mr-auto"}`}>
-      <div className={`${isUser ? "bg-blue-600 text-white" : "bg-white text-gray-900"} rounded-xl px-4 py-3 shadow-sm border ${isUser ? "border-blue-700" : "border-gray-200"}`}>
-        <pre className="whitespace-pre-wrap break-words font-sans text-sm">{content}</pre>
-      </div>
-    </div>
-  );
-}
-
-function Modal({ open, title, timestamp, onClose, children, onContinue }) {
-  if (!open) return null;
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4" onClick={(e) => { if (e.target === e.currentTarget) onClose?.(); }}>
-      <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col">
-        <div className="p-6 border-b border-gray-200 flex items-center justify-between">
-          <div>
-            <h3 className="text-xl font-bold text-gray-900">{title}</h3>
-            {timestamp ? <p className="text-sm text-gray-500 mt-1">{timestamp}</p> : null}
-          </div>
-          <div className="flex items-center space-x-2">
-            <Button variant="primary" onClick={onContinue}>
-              Continue Chat
-            </Button>
-            <Button variant="ghost" onClick={onClose} aria-label="Close modal">
-              ✕
-            </Button>
-          </div>
-        </div>
-        <div className="flex-1 overflow-y-auto p-6 space-y-4">{children}</div>
-      </div>
-    </div>
-  );
-}
+import { Message, Chat } from "../types/chat";
+import { GitEntry } from "../types/git";
 
 export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [status, setStatus] = useState({ color: "gray", text: "Ready" });
+  const [status, setStatus] = useState<{ color: "gray" | "yellow" | "green" | "red"; text: string }>({ color: "gray", text: "Ready" });
   const [inputValue, setInputValue] = useState("");
-  const [messages, setMessages] = useState([]);
-  const [chatHistory, setChatHistory] = useState([]);
-  const [currentChatId, setCurrentChatId] = useState(null);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [chatHistory, setChatHistory] = useState<Chat[]>([]);
+  const [currentChatId, setCurrentChatId] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
-  const [currentViewedChat, setCurrentViewedChat] = useState(null);
+  const [currentViewedChat, setCurrentViewedChat] = useState<Chat | null>(null);
   const [repoUrl, setRepoUrl] = useState("");
   const [sending, setSending] = useState(false);
-  const abortRef = useRef(null);
-  const chatContainerRef = useRef(null);
-  const [currentTab, setCurrentTab] = useState("chat"); // 'chat' | 'git'
-  const [gitEntries, setGitEntries] = useState([]);
-  const [commitLog, setCommitLog] = useState([]);
+  const abortRef = useRef<AbortController | null>(null);
+  const chatContainerRef = useRef<HTMLDivElement | null>(null);
+  const [currentTab, setCurrentTab] = useState<"chat" | "git">("chat");
+  const [gitEntries, setGitEntries] = useState<GitEntry[]>([]);
+  const [commitLog, setCommitLog] = useState<any[]>([]);
   // Selection of commits (by oid) for AI analysis
-  const [selectedCommitOids, setSelectedCommitOids] = useState(() => new Set());
+  const [selectedCommitOids, setSelectedCommitOids] = useState<Set<string>>(() => new Set());
   // Git tab loading state (disables all controls and shows overlay)
   const [gitLoading, setGitLoading] = useState(false);
-  // Ollama model selection for analysis
-  const [models, setModels] = useState([]);
+  // LLM model selection for analysis
+  const [models, setModels] = useState<string[]>([]);
   const [selectedModel, setSelectedModel] = useState('codellama:latest');
 
-  // Load available Ollama models when visiting Git tab
+  // Load available LLM models (currently via Ollama) when visiting Git tab
   useEffect(() => {
     const loadModels = async () => {
       try {
@@ -115,7 +70,7 @@ export default function App() {
     } catch {}
   }, [chatHistory]);
 
-  const updateStatus = useCallback((text, color = "gray") => setStatus({ text, color }), []);
+  const updateStatus = useCallback((text: string, color: "gray" | "yellow" | "green" | "red" = "gray") => setStatus({ text, color }), []);
 
   const scrollToBottom = useCallback(() => {
     const el = chatContainerRef.current;
@@ -159,7 +114,7 @@ export default function App() {
     });
   }, [messages, currentChatId]);
 
-  const addMessage = useCallback((role, content) => {
+  const addMessage = useCallback((role: "user" | "assistant", content: string) => {
     setMessages((prev) => [...prev, { role, content }]);
   }, []);
 
@@ -568,7 +523,7 @@ export default function App() {
             {/* Model selection and Analyze */}
             <div className="bg-white border border-gray-200 rounded-xl p-4 flex flex-col md:flex-row md:items-end gap-3">
               <div className="flex-1 min-w-[12rem]">
-                <label className="text-xs text-gray-500 block mb-1">Ollama Model</label>
+                <label className="text-xs text-gray-500 block mb-1">AI Model</label>
                 <select
                   value={selectedModel}
                   onChange={(e) => setSelectedModel(e.target.value)}

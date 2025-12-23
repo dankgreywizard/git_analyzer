@@ -77,5 +77,5 @@ process.on('SIGTERM', onSigTerm);
   // Start server first
   children.push(await run('server', 'npm', ['run', 'server'], {}, sharedEnv));
   // Start webpack dev server with the chosen port (also passed in env for config access if needed)
-  children.push(await run('client', 'npx', ['webpack', 'serve', '--port', String(wdsPort)], {}, sharedEnv));
+  children.push(await run('client', 'npx', ['vite', '--port', String(wdsPort)], {}, sharedEnv));
 })();
