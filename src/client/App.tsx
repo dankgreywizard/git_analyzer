@@ -25,6 +25,7 @@ export default function App() {
   const [sending, setSending] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const chatContainerRef = useRef<HTMLDivElement | null>(null);
+  const analyzeButtonRef = useRef<HTMLButtonElement | null>(null);
   const [currentTab, setCurrentTab] = useState<"chat" | "git">("chat");
   const [gitEntries, setGitEntries] = useState<GitEntry[]>([]);
   const [commitLog, setCommitLog] = useState<any[]>([]);
@@ -326,7 +327,10 @@ export default function App() {
     try {
       updateStatus("Reading log...", "yellow");
       // Server now accepts `url` and maps it to the local repo dir
-      const res = await fetch(`/api/log?url=${encodeURIComponent(url)}`);
+      let isUrl = false;
+      try { new URL(url); isUrl = true; } catch {}
+      const queryParam = isUrl ? `url=${encodeURIComponent(url)}` : `dir=${encodeURIComponent(url)}`;
+      const res = await fetch(`/api/log?${queryParam}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Log failed");
       // Show minimal in modal
@@ -516,6 +520,12 @@ export default function App() {
                 const commits = Array.isArray(data?.commits) ? data.commits : [];
                 setCommitLog(commits);
                 setSelectedCommitOids(new Set());
+                // Focus analyze button after log is loaded
+                if (commits.length > 0) {
+                  setTimeout(() => {
+                    analyzeButtonRef.current?.focus();
+                  }, 100);
+                }
               }}
               onBusyChange={(v) => setGitLoading(Boolean(v))}
               disabled={gitLoading}
@@ -540,7 +550,12 @@ export default function App() {
                 </select>
               </div>
               <div className="flex items-center gap-2">
-                <Button variant="primary" onClick={analyzeCommitsWithAI} disabled={sending || commitLog.length === 0 || gitLoading}>
+                <Button 
+                  ref={analyzeButtonRef}
+                  variant="primary" 
+                  onClick={analyzeCommitsWithAI} 
+                  disabled={sending || commitLog.length === 0 || gitLoading}
+                >
                   {selectedCommitOids.size > 0 ? `Analyze with AI (${selectedCommitOids.size} selected)` : 'Analyze with AI'}
                 </Button>
               </div>

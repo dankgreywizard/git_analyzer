@@ -1,4 +1,4 @@
-import React from "react";
+import React, { forwardRef } from "react";
 
 const base = "inline-flex items-center justify-center rounded-lg font-medium transition-colors focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed";
 
@@ -30,7 +30,7 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   fullWidth?: boolean;
 }
 
-export default function Button({
+const Button = forwardRef<HTMLButtonElement, ButtonProps>(({
   as: Comp = "button",
   variant = "primary",
   size = "md",
@@ -41,10 +41,11 @@ export default function Button({
   fullWidth = false,
   children,
   ...props
-}: ButtonProps) {
+}, ref) => {
   const compProps = Comp === "button" ? { type: "button" as const } : {};
   return (
     <Comp
+      ref={ref}
       className={`${base} ${variants[variant] ?? variants.primary} ${sizes[size] ?? sizes.md} ${
         fullWidth ? "w-full" : ""
       } ${className}`}
@@ -64,4 +65,6 @@ export default function Button({
       {rightIcon ? <span className="ml-2">{rightIcon}</span> : null}
     </Comp>
   );
-}
+});
+
+export default Button;

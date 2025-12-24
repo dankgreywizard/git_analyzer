@@ -39,6 +39,35 @@ expressApp.post('/api/clone', async (req, res) => {
     }
 });
 
+// Server-side open endpoint to verify and use an existing local repo
+expressApp.post('/api/open', async (req, res) => {
+    const { url, dir } = req.body || {};
+    if (!url && !dir) {
+        return res.status(400).json({ error: 'Missing url or dir' });
+    }
+    try {
+        const result = await gitService.openRepo(
+            typeof url === 'string' ? url : undefined,
+            typeof dir === 'string' ? dir : undefined
+        );
+        res.json({ ok: true, dir: result.dir });
+    } catch (e: any) {
+        console.error('Open failed', e);
+        res.status(400).json({ error: e?.message || String(e) });
+    }
+});
+
+// Endpoint to list available local repositories
+expressApp.get('/api/repos', async (_req, res) => {
+    try {
+        const repos = await gitService.listRepos();
+        res.json({ repos });
+    } catch (e: any) {
+        console.error('List repos failed', e);
+        res.status(500).json({ error: e?.message || String(e) });
+    }
+});
+
 // Endpoint to read git log from a cloned repo
 // Accepts either:
 //   - url: a repository URL (preferred) → server maps to repos/<sanitized>

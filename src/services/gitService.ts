@@ -40,6 +40,57 @@ export class GitService {
     return { dir: targetDir };
   }
 
+  async openRepo(url?: string, dir?: string): Promise<{ dir: string }> {
+    if (!url && !dir) throw new Error('Missing url or dir');
+    const targetDir = url ? this.resolveTargetDir(url, dir) : this.norm(dir!);
+    if (!this.isUnderRepos(targetDir)) {
+      throw new Error('dir must be under repos/');
+    }
+    
+    // Check if directory exists
+    try {
+      const stats = await fs.promises.stat(targetDir);
+      if (!stats.isDirectory()) {
+        throw new Error(`${targetDir} is not a directory`);
+      }
+    } catch (e: any) {
+      if (e.code === 'ENOENT') throw new Error(`Directory ${targetDir} does not exist`);
+      throw e;
+    }
+
+    // Check if it's a git repo by resolving HEAD
+    try {
+      await git.resolveRef({ fs, dir: targetDir, ref: 'HEAD' });
+    } catch (e) {
+      throw new Error(`${targetDir} is not a valid git repository`);
+    }
+
+    return { dir: targetDir };
+  }
+
+  async listRepos(): Promise<string[]> {
+    try {
+      const entries = await fs.promises.readdir(this.reposBase, { withFileTypes: true });
+      const repos: string[] = [];
+      for (const entry of entries) {
+        if (entry.isDirectory()) {
+          const dirPath = `${this.reposBase}/${entry.name}`;
+          try {
+            // Check if it's a git repo by resolving HEAD
+            await git.resolveRef({ fs, dir: dirPath, ref: 'HEAD' });
+            repos.push(entry.name);
+          } catch (e) {
+            // Not a valid git repo, skip
+          }
+        }
+      }
+      return repos;
+    } catch (e: any) {
+      if (e.code === 'ENOENT') return [];
+      throw e;
+    }
+  }
+
   // Returns commits plus a list of changed files for each commit (vs first parent)
   async readLogWithFiles(dir: string, options?: LogOptions): Promise<{ commits: any[]; note?: string }>{
     const normDir = this.norm(dir);
