@@ -1,9 +1,11 @@
 import { createServer } from "http";
 import express, {Express, Request, Response } from "express";
-import { ollamaResponse } from "./ollama";
+import { GitEntry } from "../types/git";
+import { Message } from "../types/chat";
+import { ollamaResponse } from "../services/ollamaService";
 import cors from "cors";
 import httpProxy from "http-proxy";
-import GitService from './gitService';
+import GitService from '../services/gitService';
 import ollama from 'ollama';
 
 const port = process.env.PORT ? Number(process.env.PORT) : 5000;
@@ -98,7 +100,7 @@ expressApp.get('/api/ollama/models', async (_req, res) => {
     }
 });
 
-// Analyze commits via Ollama and stream response as text/plain
+// Analyze commits via LLM (currently supports Ollama) and stream response as text/plain
 expressApp.post('/api/analyze-commits', async (req: Request, res: Response) => {
     try {
         const { commits, model, maxCommits, instructions } = req.body || {};

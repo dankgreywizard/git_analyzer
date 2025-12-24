@@ -1,6 +1,11 @@
 import React, { useEffect, useMemo, useState } from "react";
 
-function Badge({ children, tone = "gray" }) {
+interface BadgeProps {
+  children: React.ReactNode;
+  tone?: "gray" | "green" | "red" | "yellow" | "blue";
+}
+
+function Badge({ children, tone = "gray" }: BadgeProps) {
   const map = {
     gray: "bg-gray-100 text-gray-700 border-gray-200",
     green: "bg-green-50 text-green-700 border-green-200",
@@ -15,9 +20,41 @@ function Badge({ children, tone = "gray" }) {
   );
 }
 
-function FileBadge({ status }) {
+function FileBadge({ status }: { status: string }) {
   const tone = status === 'added' ? 'green' : status === 'deleted' ? 'red' : 'blue';
   return <Badge tone={tone}>{status}</Badge>;
+}
+
+interface CommitFile {
+  path: string;
+  status: string;
+}
+
+interface Commit {
+  oid?: string;
+  message?: string;
+  author?: {
+    name?: string;
+    timestamp?: number;
+  };
+  commit?: {
+    oid?: string;
+    message?: string;
+    author?: {
+      name?: string;
+      timestamp?: number;
+    };
+  };
+  files?: CommitFile[];
+}
+
+interface CommitListProps {
+  commits?: Commit[];
+  defaultPageSize?: number;
+  disabled?: boolean;
+  selectedOids?: Set<string>;
+  onToggleCommit?: (oid: string, selected: boolean) => void;
+  onToggleAllVisible?: (oids: string[], selected: boolean) => void;
 }
 
 export default function CommitList({
@@ -27,7 +64,7 @@ export default function CommitList({
   selectedOids = new Set(),
   onToggleCommit,
   onToggleAllVisible,
-}) {
+}: CommitListProps) {
   const [openSet, setOpenSet] = useState(() => new Set());
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(defaultPageSize);
@@ -67,10 +104,10 @@ export default function CommitList({
           <input
             type="checkbox"
             disabled={disabled || visible.length === 0}
-            checked={visible.length > 0 && visible.every(c => selectedOids.has(c.oid || c.commit?.oid))}
+            checked={visible.length > 0 && visible.every(c => selectedOids.has(String(c.oid || c.commit?.oid)))}
             onChange={(e) => {
               if (disabled) return;
-              const oids = visible.map(c => c.oid || c.commit?.oid).filter(Boolean);
+              const oids = visible.map(c => String(c.oid || c.commit?.oid)).filter(Boolean);
               onToggleAllVisible?.(oids, e.target.checked);
             }}
             className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
@@ -78,7 +115,7 @@ export default function CommitList({
           <span>Commits</span>
         </div>
         <div className="text-xs text-gray-500">
-          Selected: {Array.isArray(commits) ? commits.filter(c => selectedOids.has(c.oid || c.commit?.oid)).length : 0}
+          Selected: {Array.isArray(commits) ? commits.filter(c => selectedOids.has(String(c.oid || c.commit?.oid))).length : 0}
         </div>
       </div>
       {/* Pager controls */}
@@ -125,7 +162,7 @@ export default function CommitList({
       </div>
       <ul className="divide-y divide-gray-100">
         {visible.map((c, idx) => {
-          const id = c.oid || c.commit?.oid || idx;
+          const id = String(c.oid || c.commit?.oid || idx);
           const author = c.author?.name || c.commit?.author?.name || "Unknown";
           const when = c.author?.timestamp
             ? new Date((c.author.timestamp || 0) * 1000)

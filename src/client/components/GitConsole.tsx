@@ -2,7 +2,14 @@ import React, {useMemo} from "react";
 
 // Entry shape suggestion:
 // { id, time, op: 'clone'|'log'|string, request: any, status: 'success'|'error', data?: any, error?: string }
-export default function GitConsole({ entries = [], onClear }) {
+import { GitEntry } from "../../types/git";
+
+interface GitConsoleProps {
+  entries?: GitEntry[];
+  onClear?: () => void;
+}
+
+export default function GitConsole({ entries = [], onClear }: GitConsoleProps) {
   const sorted = useMemo(() => [...entries].sort((a,b) => (a.time||0) - (b.time||0)), [entries]);
 
   return (
@@ -54,7 +61,7 @@ export default function GitConsole({ entries = [], onClear }) {
   );
 }
 
-function safeStringify(v) {
+function safeStringify(v: any) {
   try {
     return JSON.stringify(v, null, 2);
   } catch {

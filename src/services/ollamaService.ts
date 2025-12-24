@@ -1,10 +1,11 @@
 import ollama from 'ollama';
 import {Request, Response} from "express";
+import { Message } from "../types/chat";
 
 export const ollamaResponse = async (req: Request, resp: Response) => {
     console.log("waiting  for response");
-    let content = req.body;
-    let messageArray = [];
+    const content: string[] = req.body;
+    const messageArray: Message[] = [];
     for(let x=0; x < content.length; x++) {
           messageArray.push(JSON.parse(content[x]));
     }

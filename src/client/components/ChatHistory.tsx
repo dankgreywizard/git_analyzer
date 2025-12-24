@@ -1,5 +1,16 @@
 import React from "react";
 
+import { Chat } from "../../types/chat";
+
+interface ChatHistoryProps {
+  chats?: Chat[];
+  currentChatId?: string | null;
+  onSelect?: (id: string) => void;
+  onPreview?: (chat: Chat) => void;
+  onDelete?: (id: string) => void;
+  onNewChat?: () => void;
+}
+
 export default function ChatHistory({
   chats = [],
   currentChatId,
@@ -7,7 +18,7 @@ export default function ChatHistory({
   onPreview,
   onDelete,
   onNewChat,
-}) {
+}: ChatHistoryProps) {
   return (
     <aside className={`w-64 bg-white border-r border-gray-200 flex flex-col h-full`}>
       <div className="p-4 border-b border-gray-200 flex items-center justify-between">
