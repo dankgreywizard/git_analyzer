@@ -5,6 +5,9 @@ export interface StatusProps {
   text?: string;
 }
 
+/**
+ * Component to display the current application status with a colored indicator.
+ */
 export default function Status({ color = "gray", text = "Ready" }: StatusProps) {
   const dot = useMemo(() => ({
     gray: "bg-gray-400",

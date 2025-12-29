@@ -57,6 +57,9 @@ interface CommitListProps {
   onToggleAllVisible?: (oids: string[], selected: boolean) => void;
 }
 
+/**
+ * Component to display a list of Git commits with pagination and selection features.
+ */
 export default function CommitList({
   commits = [],
   defaultPageSize = 10,
@@ -101,18 +104,20 @@ export default function CommitList({
     <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
       <div className="px-4 py-2 border-b border-gray-200 bg-gray-50 text-sm font-medium text-gray-700 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <input
-            type="checkbox"
-            disabled={disabled || visible.length === 0}
-            checked={visible.length > 0 && visible.every(c => selectedOids.has(String(c.oid || c.commit?.oid)))}
-            onChange={(e) => {
-              if (disabled) return;
-              const oids = visible.map(c => String(c.oid || c.commit?.oid)).filter(Boolean);
-              onToggleAllVisible?.(oids, e.target.checked);
-            }}
-            className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-          />
-          <span>Commits</span>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              disabled={disabled || visible.length === 0}
+              checked={visible.length > 0 && visible.every(c => selectedOids.has(String(c.oid || c.commit?.oid)))}
+              onChange={(e) => {
+                if (disabled) return;
+                const oids = visible.map(c => String(c.oid || c.commit?.oid)).filter(Boolean);
+                onToggleAllVisible?.(oids, e.target.checked);
+              }}
+              className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            />
+            <span>Commits</span>
+          </label>
         </div>
         <div className="text-xs text-gray-500">
           Selected: {Array.isArray(commits) ? commits.filter(c => selectedOids.has(String(c.oid || c.commit?.oid))).length : 0}

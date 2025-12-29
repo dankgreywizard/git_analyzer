@@ -13,16 +13,30 @@ export interface LogOptions {
   depth?: number;
 }
 
+/**
+ * Service for interacting with Git repositories using isomorphic-git.
+ */
 export class GitService {
   private readonly reposBase: string;
   private readonly defaultDepth: number;
 
+  /**
+   * Initializes the Git service with optional configuration.
+   * @param config Configuration options including reposBase and defaultDepth.
+   */
   constructor(config?: { reposBase?: string; defaultDepth?: number }) {
     this.reposBase = this.norm(config?.reposBase ?? 'repos');
     this.defaultDepth = config?.defaultDepth ?? 25;
   }
 
   // Public API
+  /**
+   * Clones a repository from a given URL into a target directory.
+   * @param url The repository URL to clone.
+   * @param dir Optional target directory name.
+   * @param options Optional clone settings (depth, singleBranch, ref).
+   * @returns The directory where the repository was cloned.
+   */
   async cloneRepo(url: string, dir?: string, options?: CloneOptions): Promise<{ dir: string }> {
     if (!url) throw new Error('Missing url');
     const targetDir = this.resolveTargetDir(url, dir);
@@ -40,6 +54,12 @@ export class GitService {
     return { dir: targetDir };
   }
 
+  /**
+   * Validates and returns the directory of an existing repository.
+   * @param url Optional repository URL to resolve directory.
+   * @param dir Optional directory path.
+   * @returns The resolved repository directory.
+   */
   async openRepo(url?: string, dir?: string): Promise<{ dir: string }> {
     if (!url && !dir) throw new Error('Missing url or dir');
     const targetDir = url ? this.resolveTargetDir(url, dir) : this.norm(dir!);
@@ -68,6 +88,10 @@ export class GitService {
     return { dir: targetDir };
   }
 
+  /**
+   * Lists all Git repositories in the reposBase directory.
+   * @returns Array of repository directory names.
+   */
   async listRepos(): Promise<string[]> {
     try {
       const entries = await fs.promises.readdir(this.reposBase, { withFileTypes: true });
@@ -91,7 +115,12 @@ export class GitService {
     }
   }
 
-  // Returns commits plus a list of changed files for each commit (vs first parent)
+  /**
+   * Reads the commit log for a repository and includes changed files for each commit.
+   * @param dir The repository directory.
+   * @param options Optional log settings (ref, depth).
+   * @returns Object containing the list of commits and an optional note.
+   */
   async readLogWithFiles(dir: string, options?: LogOptions): Promise<{ commits: any[]; note?: string }>{
     const normDir = this.norm(dir);
     if (!this.isUnderRepos(normDir)) {
@@ -131,6 +160,13 @@ export class GitService {
     return { commits: result };
   }
 
+  /**
+   * Compares two commit OIDs and lists the files that changed between them.
+   * @param dir The repository directory.
+   * @param oldOid The base commit OID.
+   * @param newOid The target commit OID.
+   * @returns Array of changed files with their status.
+   */
   private async listChangedFiles(dir: string, oldOid: string | undefined, newOid: string): Promise<Array<{ path: string; status: 'added'|'modified'|'deleted' }>> {
     // Use isomorphic-git walk over two TREE snapshots
     const trees: any[] = [];

@@ -28,8 +28,13 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   leftIcon?: React.ReactNode;
   rightIcon?: React.ReactNode;
   fullWidth?: boolean;
+  href?: string;
+  target?: string;
 }
 
+/**
+ * A reusable button component with various variants and sizes.
+ */
 const Button = forwardRef<HTMLButtonElement, ButtonProps>(({
   as: Comp = "button",
   variant = "primary",

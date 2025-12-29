@@ -11,6 +11,10 @@ import ollama from 'ollama';
 const port = process.env.PORT ? Number(process.env.PORT) : 5000;
 const webpackPort = process.env.WDS_PORT || '5100';
 
+/**
+ * Express application setup and API routes for the backend server.
+ * Handles Git operations, LLM analysis, and static file serving.
+ */
 const expressApp: Express = express();
 const proxy = httpProxy.createServer({
     target: `http://localhost:${webpackPort}`, ws: true

@@ -9,6 +9,9 @@ interface GitConsoleProps {
   onClear?: () => void;
 }
 
+/**
+ * Component to display a log of Git operations performed during the session.
+ */
 export default function GitConsole({ entries = [], onClear }: GitConsoleProps) {
   const sorted = useMemo(() => [...entries].sort((a,b) => (a.time||0) - (b.time||0)), [entries]);
 

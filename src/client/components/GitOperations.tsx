@@ -10,6 +10,9 @@ interface GitOperationsProps {
   disabled?: boolean;
 }
 
+/**
+ * Component to handle Git operations like cloning, opening repositories, and fetching logs.
+ */
 export default function GitOperations({ 
   onResult, 
   updateStatus, 
@@ -176,8 +179,9 @@ export default function GitOperations({
           </div>
         </div>
         <div className="w-full md:w-40">
-          <label className="text-xs text-gray-500 block mb-1">Commits to fetch</label>
+          <label htmlFor="commits-limit" className="text-xs text-gray-500 block mb-1">Commits to fetch</label>
           <input
+            id="commits-limit"
             type="number"
             min={1}
             max={1000}

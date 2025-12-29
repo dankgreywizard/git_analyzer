@@ -5,6 +5,9 @@ export interface ChatMessageProps {
   content: string;
 }
 
+/**
+ * Component to display a single message in the chat interface.
+ */
 export default function ChatMessage({ role, content }: ChatMessageProps) {
   const isUser = role === "user";
   return (

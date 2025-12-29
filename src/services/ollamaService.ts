@@ -2,6 +2,12 @@ import ollama from 'ollama';
 import {Request, Response} from "express";
 import { Message } from "../types/chat";
 
+/**
+ * Handles chat requests by communicating with the Ollama service.
+ * Streams the response chunks back to the client.
+ * @param req Express request object containing the message history.
+ * @param resp Express response object to stream the reply.
+ */
 export const ollamaResponse = async (req: Request, resp: Response) => {
     console.log("waiting  for response");
     const content: string[] = req.body;
@@ -21,7 +27,7 @@ export const ollamaResponse = async (req: Request, resp: Response) => {
     // Ensure a text content type for incremental rendering
     resp.setHeader('Content-Type', 'text/plain; charset=utf-8');
     for await (const part of response) {
-        const chunk = (part && (part as any).message && (part as any).message.content) ?? (part as any).response ?? '';
+        const chunk = (part && (part as any).message && (part as any).message.content) ?? (part as any)?.response ?? '';
         if (chunk) {
             resp.write(chunk);
         }

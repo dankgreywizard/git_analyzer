@@ -12,6 +12,10 @@ import Modal from "./components/Modal";
 import { Message, Chat } from "../types/chat";
 import { GitEntry } from "../types/git";
 
+/**
+ * The main entry point for the React application.
+ * Manages chat state, Git operations, and application views.
+ */
 export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [status, setStatus] = useState<{ color: "gray" | "yellow" | "green" | "red"; text: string }>({ color: "gray", text: "Ready" });
@@ -21,7 +25,6 @@ export default function App() {
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [currentViewedChat, setCurrentViewedChat] = useState<Chat | null>(null);
-  const [repoUrl, setRepoUrl] = useState("");
   const [sending, setSending] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const chatContainerRef = useRef<HTMLDivElement | null>(null);
@@ -295,54 +298,6 @@ export default function App() {
       abortRef.current = null;
     }
   }, [commitLog, selectedCommitOids, selectedModel, currentChatId, addMessage, setMessages, scrollToBottom, updateStatus]);
-
-  const handleClone = useCallback(async () => {
-    const url = repoUrl.trim();
-    if (!url) {
-      updateStatus("Enter a repository URL", "yellow");
-      return;
-    }
-    try {
-      updateStatus("Cloning...", "yellow");
-      const res = await fetch("/api/clone", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || "Clone failed");
-      updateStatus(`Cloned to ${data.dir}`, "green");
-    } catch (e) {
-      console.error(e);
-      updateStatus("Clone failed", "red");
-    }
-  }, [repoUrl, updateStatus]);
-
-  const handleLog = useCallback(async () => {
-    const url = repoUrl.trim();
-    if (!url) {
-      updateStatus("Enter a repository URL", "yellow");
-      return;
-    }
-    try {
-      updateStatus("Reading log...", "yellow");
-      // Server now accepts `url` and maps it to the local repo dir
-      let isUrl = false;
-      try { new URL(url); isUrl = true; } catch {}
-      const queryParam = isUrl ? `url=${encodeURIComponent(url)}` : `dir=${encodeURIComponent(url)}`;
-      const res = await fetch(`/api/log?${queryParam}`);
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || "Log failed");
-      // Show minimal in modal
-      setCurrentViewedChat({ id: "git-log", messages: [] });
-      setModalOpen(true);
-      updateStatus("Ready", "green");
-      console.log("Git log", data);
-    } catch (e) {
-      console.error(e);
-      updateStatus("Log failed", "red");
-    }
-  }, [repoUrl, updateStatus]);
 
   // Derived char count
   const charCount = inputValue.length;

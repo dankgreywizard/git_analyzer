@@ -11,6 +11,9 @@ interface ChatHistoryProps {
   onNewChat?: () => void;
 }
 
+/**
+ * Component to display and manage a list of past chat sessions.
+ */
 export default function ChatHistory({
   chats = [],
   currentChatId,

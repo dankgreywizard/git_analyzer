@@ -10,6 +10,9 @@ export interface ModalProps {
   onContinue?: () => void;
 }
 
+/**
+ * A modal dialog component for displaying detailed information or history.
+ */
 export default function Modal({ open, title, timestamp, onClose, children, onContinue }: ModalProps) {
   if (!open) return null;
   return (
