@@ -15,4 +15,10 @@ describe('ChatMessage', () => {
     expect(screen.getByText('Hi there')).toBeInTheDocument();
     expect(screen.getByText('Hi there').closest('div')).toHaveClass('bg-white');
   });
+
+  it('renders system message correctly', () => {
+    render(<ChatMessage role="system" content="System instruction" />);
+    expect(screen.getByText('System instruction')).toBeInTheDocument();
+    expect(screen.getByText('System instruction').closest('div')).toHaveClass('bg-white');
+  });
 });

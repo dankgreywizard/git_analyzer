@@ -3,6 +3,7 @@ import ChatHistory from "./components/ChatHistory";
 import Header from "./components/Header";
 import ChatView from "./components/ChatView";
 import GitView from "./components/GitView";
+import SettingsView from "./components/SettingsView";
 import ChatPreviewModal from "./components/ChatPreviewModal";
 
 import { useModels } from "./hooks/useModels";
@@ -27,7 +28,7 @@ export default function App() {
   const [currentViewedChat, setCurrentViewedChat] = useState<Chat | null>(null);
   const chatContainerRef = useRef<HTMLDivElement | null>(null);
   const analyzeButtonRef = useRef<HTMLButtonElement | null>(null);
-  const [currentTab, setCurrentTab] = useState<"chat" | "git">("chat");
+  const [currentTab, setCurrentTab] = useState<"chat" | "git" | "settings">("git");
   const [gitEntries, setGitEntries] = useState<GitEntry[]>([]);
   const [commitLog, setCommitLog] = useState<any[]>([]);
   // Selection of commits (by oid) for AI analysis
@@ -35,7 +36,7 @@ export default function App() {
   // Git tab loading state (disables all controls and shows overlay)
   const [gitLoading, setGitLoading] = useState(false);
   // LLM model selection for analysis
-  const { models, selectedModel, setSelectedModel } = useModels(currentTab);
+  const { models, selectedModel, setSelectedModel } = useModels(currentTab === 'settings' ? 'chat' : currentTab);
 
   const updateStatus = useCallback((text: string, color: "gray" | "yellow" | "green" | "red" = "gray") => setStatus({ text, color }), []);
 
@@ -158,7 +159,7 @@ export default function App() {
         />
 
         {/* Main content switcher */}
-        {currentTab === 'chat' ? (
+        {currentTab === 'chat' && (
           <ChatView
             messages={messages}
             inputValue={inputValue}
@@ -168,7 +169,8 @@ export default function App() {
             onCancel={handleCancel}
             chatContainerRef={chatContainerRef}
           />
-        ) : (
+        )}
+        {currentTab === 'git' && (
           <GitView
             gitLoading={gitLoading}
             updateStatus={updateStatus}
@@ -185,6 +187,9 @@ export default function App() {
             selectedCommitOids={selectedCommitOids}
             gitEntries={gitEntries}
           />
+        )}
+        {currentTab === 'settings' && (
+          <SettingsView />
         )}
       </div>
 

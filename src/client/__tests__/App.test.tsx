@@ -7,6 +7,29 @@ import React from 'react';
 global.fetch = vi.fn();
 
 describe('App', () => {
+  const switchToTab = async (tabName: 'Git' | 'Chat' | 'Settings') => {
+    // Open the dropdown menu
+    const buttons = screen.getAllByRole('button');
+    // The menu button has the current tab name as text
+    const menuButton = buttons.find(b => 
+      ['git', 'chat', 'settings'].includes(b.textContent?.toLowerCase() || '') &&
+      b.querySelector('svg') // It has a chevron icon
+    );
+    
+    if (menuButton) {
+      fireEvent.click(menuButton);
+    }
+    
+    // Find the option in the dropdown
+    const options = screen.getAllByRole('button');
+    const option = options.find(o => o.textContent?.trim() === tabName);
+    if (option) {
+      fireEvent.click(option);
+    }
+    
+    await act(async () => {});
+  };
+
   beforeEach(() => {
     vi.clearAllMocks();
     (global.fetch as any).mockImplementation((url: string) => {
@@ -35,24 +58,25 @@ describe('App', () => {
 
   it('toggles between Chat and Git tabs', async () => {
     render(<App />);
-    const gitTabButton = screen.getByRole('tab', { name: /Git/i });
-    const chatTabButton = screen.getByRole('tab', { name: /Chat/i });
-
-    fireEvent.click(gitTabButton);
-    await act(async () => {
-      // Allow any state updates from switching tabs to settle
-    });
-    expect(screen.getByText('Repository URL or Local Path')).toBeInTheDocument();
     
-    fireEvent.click(chatTabButton);
-    await act(async () => {
-      // Allow any state updates from switching tabs to settle
-    });
+    // Default is Git tab now
+    expect(screen.getByText('Repository URL or Local Path')).toBeInTheDocument();
+
+    // Switch to Chat
+    await switchToTab('Chat');
     expect(screen.getByPlaceholderText('Type your message here...')).toBeInTheDocument();
+    
+    // Switch back to Git
+    await switchToTab('Git');
+    expect(screen.getByText('Repository URL or Local Path')).toBeInTheDocument();
   });
 
   it('can start a new chat', async () => {
     render(<App />);
+    
+    // Switch to Chat first
+    await switchToTab('Chat');
+
     const newChatButton = screen.getByText('New Chat');
     fireEvent.click(newChatButton);
     // Should clear current messages if there were any, but here we just check it doesn't crash
@@ -66,14 +90,23 @@ describe('App', () => {
         .mockResolvedValueOnce({ done: false, value: new TextEncoder().encode('World') })
         .mockResolvedValueOnce({ done: true }),
     };
-    (global.fetch as any).mockResolvedValue({
-      ok: true,
-      body: {
-        getReader: () => mockReader,
-      },
+    (global.fetch as any).mockImplementation((url: string) => {
+      if (url === '/read') {
+        return Promise.resolve({
+          ok: true,
+          body: {
+            getReader: () => mockReader,
+          },
+        });
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({ models: ['model1'] }) });
     });
 
     render(<App />);
+    
+    // Switch to Chat first
+    await switchToTab('Chat');
+
     const input = screen.getByPlaceholderText('Type your message here...');
     const sendButton = screen.getByLabelText('Send message');
 
@@ -83,19 +116,12 @@ describe('App', () => {
     });
 
     expect(global.fetch).toHaveBeenCalledWith('/read', expect.any(Object));
-    expect(await screen.findByText(/Hello World/)).toBeInTheDocument();
+    expect(await screen.findByText(/Hello World/i)).toBeInTheDocument();
   });
 
   it('handles Git operations results', async () => {
     render(<App />);
-    await act(async () => {
-        fireEvent.click(screen.getByRole('tab', { name: /Git/i }));
-    });
-    
-    // Simulate a successful clone via GitOperations (which we mock or just use the real one and trigger its callbacks)
-    // Actually, App passes onResult to GitOperations.
-    // We can't easily trigger the callback from here without finding the component.
-    // But we can test if GitOperations is rendered.
+    // Default is Git tab now
     expect(screen.getByText('Clone')).toBeInTheDocument();
   });
 
@@ -118,7 +144,7 @@ describe('App', () => {
 
     render(<App />);
     await act(async () => {
-        fireEvent.click(screen.getByRole('tab', { name: /Git/i }));
+        await switchToTab('Git');
     });
     
     // We need some commits in the state to enable the analyze button
@@ -131,11 +157,12 @@ describe('App', () => {
     window.localStorage.setItem('chatHistory', JSON.stringify(initialHistory));
     
     render(<App />);
+    await switchToTab('Chat');
     
-    expect(screen.getByText('Chat 1')).toBeInTheDocument();
+    expect(await screen.findByText('Chat 1')).toBeInTheDocument();
     
     fireEvent.click(screen.getByText('Chat 1'));
-    expect(screen.getByText('Chat 1', { selector: 'pre' })).toBeInTheDocument();
+    expect(await screen.findByText('Chat 1', { selector: 'pre' })).toBeInTheDocument();
     
     fireEvent.click(screen.getByTitle('Delete'));
     expect(screen.queryByText('Chat 1')).not.toBeInTheDocument();
@@ -150,7 +177,7 @@ describe('App', () => {
     
     render(<App />);
     await act(async () => {
-        fireEvent.click(screen.getByRole('tab', { name: /Git/i }));
+        await switchToTab('Git');
     });
     
     // Fill the log
@@ -180,9 +207,10 @@ describe('App', () => {
     window.localStorage.setItem('chatHistory', JSON.stringify(initialHistory));
     
     render(<App />);
+    await switchToTab('Chat');
     
     await act(async () => {
-        fireEvent.click(screen.getByText('View'));
+        fireEvent.click(await screen.findByText('View'));
     });
     expect(screen.getByRole('heading', { name: 'Chat History', level: 3 })).toBeInTheDocument(); // Modal title
     expect(screen.getByText('Chat 1', { selector: '.whitespace-pre-wrap' })).toBeInTheDocument();
@@ -204,6 +232,7 @@ describe('App', () => {
     (global.fetch as any).mockReturnValue(new Promise(() => {})); // Never resolves
 
     render(<App />);
+    await switchToTab('Chat');
     const input = screen.getByPlaceholderText('Type your message here...');
     fireEvent.change(input, { target: { value: 'long message' } });
     
@@ -219,6 +248,7 @@ describe('App', () => {
 
   it('saves current chat when starting a new one', async () => {
     render(<App />);
+    await switchToTab('Chat');
     const input = screen.getByPlaceholderText('Type your message here...');
     fireEvent.change(input, { target: { value: 'message to save' } });
     
@@ -248,6 +278,7 @@ describe('App', () => {
       body: { getReader: () => ({ read: vi.fn().mockResolvedValue({ done: true }) }) },
     });
     render(<App />);
+    await switchToTab('Chat');
     const textarea = screen.getByPlaceholderText('Type your message here...');
     fireEvent.change(textarea, { target: { value: 'Enter key test' } });
     await act(async () => {
@@ -256,8 +287,9 @@ describe('App', () => {
     expect(global.fetch).toHaveBeenCalledWith('/read', expect.any(Object));
   });
 
-  it('toggles sidebar on mobile', () => {
+  it('toggles sidebar on mobile', async () => {
     render(<App />);
+    await switchToTab('Chat');
     const toggleButton = screen.getByTitle('Toggle chat history');
     fireEvent.click(toggleButton);
     // Since we're using JSDOM, we just check it doesn't crash and the state updates
@@ -267,6 +299,7 @@ describe('App', () => {
   it('handles fetch error in handleSend', async () => {
     (global.fetch as any).mockResolvedValue({ ok: false, statusText: 'Bad Request' });
     render(<App />);
+    await switchToTab('Chat');
     const textarea = screen.getByPlaceholderText('Type your message here...');
     fireEvent.change(textarea, { target: { value: 'error test' } });
     await act(async () => {
@@ -301,7 +334,7 @@ describe('App', () => {
     });
 
     render(<App />);
-    fireEvent.click(screen.getByRole('tab', { name: /Git/i }));
+    await switchToTab('Git');
     
     const input = screen.getByPlaceholderText('https://github.com/user/repo.git or repos/name');
     fireEvent.change(input, { target: { value: 'repos/test' } });
@@ -318,8 +351,9 @@ describe('App', () => {
     expect(await screen.findByText(/AI Response/)).toBeInTheDocument();
   });
 
-  it('renders empty message state', () => {
+  it('renders empty message state', async () => {
     render(<App />);
+    await switchToTab('Chat');
     expect(screen.getByText('Start a conversation')).toBeInTheDocument();
   });
 
@@ -332,21 +366,22 @@ describe('App', () => {
     window.localStorage.setItem('chatHistory', JSON.stringify(initialHistory));
     
     render(<App />);
+    await switchToTab('Chat');
     
     // Select Chat 1
-    fireEvent.click(screen.getByText('Chat 1'));
+    fireEvent.click(await screen.findByText('Chat 1'));
     // Now currentChatId is '1', but we didn't add any NEW messages in this session yet? 
     // Wait, the state `messages` is loaded from history.
     
     // Select Chat 2. Since we didn't change anything, it should just switch.
-    fireEvent.click(screen.getByText('Chat 2'));
-    expect(screen.getByText('Chat 2', { selector: 'pre' })).toBeInTheDocument();
+    fireEvent.click(await screen.findByText('Chat 2'));
+    expect(await screen.findByText('Chat 2', { selector: 'pre' })).toBeInTheDocument();
   });
 
   it('handles analyzeCommitsWithAI with no commits', async () => {
     render(<App />);
     await act(async () => {
-        fireEvent.click(screen.getByRole('tab', { name: /Git/i }));
+        await switchToTab('Git');
     });
     // analyzeButton is disabled by default when commitLog is empty
     const analyzeButton = screen.getByText('Analyze with AI');
@@ -358,6 +393,7 @@ describe('App', () => {
     window.localStorage.setItem('chatHistory', JSON.stringify(initialHistory));
     
     render(<App />);
+    await switchToTab('Chat');
     
     // Send a new message to current (new) chat
     const input = screen.getByPlaceholderText('Type your message here...');
@@ -381,6 +417,7 @@ describe('App', () => {
     // We need to set the currentChatId to 'current' and messages to the old one
     // The easiest way is to render and then select it from history.
     render(<App />);
+    await switchToTab('Chat');
     fireEvent.click(screen.getByText('Old message'));
     
     // Send a new message
@@ -410,7 +447,7 @@ describe('App', () => {
     });
     render(<App />);
     await act(async () => {
-        fireEvent.click(screen.getByRole('tab', { name: /Git/i }));
+        await switchToTab('Git');
     });
     expect(screen.getByText('codellama:latest')).toBeInTheDocument(); // Default model still shown
   });
@@ -423,7 +460,7 @@ describe('App', () => {
     });
     render(<App />);
     await act(async () => {
-        fireEvent.click(screen.getByRole('tab', { name: /Git/i }));
+        await switchToTab('Git');
     });
     
     // Load log
@@ -444,7 +481,7 @@ describe('App', () => {
     });
     render(<App />);
     await act(async () => {
-        fireEvent.click(screen.getByRole('tab', { name: /Git/i }));
+        await switchToTab('Git');
     });
     
     const select = screen.getByRole('combobox');
@@ -457,7 +494,7 @@ describe('App', () => {
   it('handles onResult from GitOperations', async () => {
     render(<App />);
     await act(async () => {
-        fireEvent.click(screen.getByRole('tab', { name: /Git/i }));
+        await switchToTab('Git');
     });
     // Find the Clone button and trigger a clone to get a result
     const cloneButton = screen.getByText('Clone');
@@ -484,7 +521,7 @@ describe('App', () => {
         return Promise.resolve({ ok: true, json: () => Promise.resolve({ models: ['model1'] }) });
     });
     render(<App />);
-    fireEvent.click(screen.getByRole('tab', { name: /Git/i }));
+    await switchToTab('Git');
     
     // Load log
     const input = screen.getByPlaceholderText('https://github.com/user/repo.git or repos/name');
@@ -511,12 +548,18 @@ describe('App', () => {
         .mockResolvedValueOnce({ done: false, value: new TextEncoder().encode('Part 1') })
         .mockResolvedValueOnce({ done: true }),
     };
-    (global.fetch as any).mockResolvedValue({
-      ok: true,
-      body: { getReader: () => mockReader },
+    (global.fetch as any).mockImplementation((url: string) => {
+      if (url === '/read') {
+        return Promise.resolve({
+          ok: true,
+          body: { getReader: () => mockReader },
+        });
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({ models: ['model1'] }) });
     });
     
     render(<App />);
+    await switchToTab('Chat');
     const textarea = screen.getByPlaceholderText('Type your message here...');
     fireEvent.change(textarea, { target: { value: 'final chunk test' } });
     await act(async () => {
