@@ -17,24 +17,31 @@ describe('Header', () => {
     expect(screen.getByText('Git Review Assistant')).toBeInTheDocument();
     expect(screen.getByText('New Chat')).toBeInTheDocument();
     expect(screen.getByText('Ready')).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: /chat/i })).toHaveAttribute('aria-selected', 'true');
-    expect(screen.getByRole('tab', { name: /git/i })).toHaveAttribute('aria-selected', 'false');
+    expect(screen.getByText('chat')).toBeInTheDocument();
   });
 
   it('renders correctly in git tab', () => {
     render(<Header {...defaultProps} currentTab="git" />);
     expect(screen.queryByText('New Chat')).not.toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: /chat/i })).toHaveAttribute('aria-selected', 'false');
-    expect(screen.getByRole('tab', { name: /git/i })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByText('git')).toBeInTheDocument();
   });
 
-  it('calls setCurrentTab when tabs are clicked', () => {
+  it('calls setCurrentTab when menu items are clicked', async () => {
     render(<Header {...defaultProps} />);
-    fireEvent.click(screen.getByRole('tab', { name: /git/i }));
+    
+    // Open menu
+    fireEvent.click(screen.getByText('chat'));
+    
+    // Click Git option
+    fireEvent.click(screen.getByText('Git'));
     expect(defaultProps.setCurrentTab).toHaveBeenCalledWith('git');
     
-    fireEvent.click(screen.getByRole('tab', { name: /chat/i }));
-    expect(defaultProps.setCurrentTab).toHaveBeenCalledWith('chat');
+    // Open menu again
+    fireEvent.click(screen.getByText('chat'));
+    
+    // Click Settings option
+    fireEvent.click(screen.getByText('Settings'));
+    expect(defaultProps.setCurrentTab).toHaveBeenCalledWith('settings');
   });
 
   it('calls onNewChat when "New Chat" button is clicked', () => {

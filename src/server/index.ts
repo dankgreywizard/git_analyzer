@@ -3,10 +3,11 @@ import express, {Express, Request, Response } from "express";
 import { GitEntry } from "../types/git";
 import { Message } from "../types/chat";
 import { ollamaResponse } from "../services/ollamaService";
+import { getAIService } from "../services/aiService";
+import { configService } from "../services/configService";
 import cors from "cors";
 import httpProxy from "http-proxy";
 import GitService from '../services/gitService';
-import ollama from 'ollama';
 
 const port = process.env.PORT ? Number(process.env.PORT) : 5000;
 const webpackPort = process.env.WDS_PORT || '5100';
@@ -121,11 +122,11 @@ expressApp.get('/api/log', async (req, res) => {
     }
 });
 
-// List available Ollama models
+// List available AI models
 expressApp.get('/api/ollama/models', async (_req, res) => {
     try {
-        const list: any = await (ollama as any).list?.();
-        const models = Array.isArray(list?.models) ? list.models.map((m: any) => m.name).filter(Boolean) : [];
+        const aiService = getAIService();
+        const models = await aiService.listModels();
         res.json({ models });
     } catch (e: any) {
         console.error('List models failed', e);
@@ -140,7 +141,8 @@ expressApp.post('/api/analyze-commits', async (req: Request, res: Response) => {
         if (!Array.isArray(commits) || commits.length === 0) {
             return res.status(400).json({ error: 'Missing commits array' });
         }
-        const selectedModel = typeof model === 'string' && model.trim() ? model.trim() : 'codellama:latest';
+        const config = configService.getConfig();
+        const selectedModel = typeof model === 'string' && model.trim() ? model.trim() : (config.defaultModel || 'codellama:latest');
         const cap = typeof maxCommits === 'number' && Number.isFinite(maxCommits) ? Math.min(Math.max(1, Math.floor(maxCommits)), 1000) : 100;
 
         // Compact commit entries to avoid huge payloads
@@ -171,14 +173,14 @@ Keep it structured with short sections and bullet points.`;
         };
 
         res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-        const stream = await (ollama as any).chat({
+        const aiService = getAIService();
+        const stream = await aiService.chat({
             model: selectedModel,
             stream: true,
             messages: [
                 { role: 'system', content: systemPrompt },
                 { role: 'user', content: JSON.stringify(userPrompt) },
             ],
-            think: false,
         });
 
         for await (const part of stream) {
@@ -192,6 +194,21 @@ Keep it structured with short sections and bullet points.`;
         res.status(500).json({ error: e?.message || String(e) });
     }
 });
+// Get current AI configuration
+expressApp.get('/api/config', (_req, res) => {
+    res.json(configService.getConfig());
+});
+
+// Update AI configuration
+expressApp.post('/api/config', (req, res) => {
+    try {
+        configService.updateConfig(req.body);
+        res.json({ ok: true });
+    } catch (e: any) {
+        res.status(500).json({ error: e?.message || String(e) });
+    }
+});
+
 expressApp.use(express.static("static"));
 expressApp.use(express.static("node_modules/bootstrap/dist"));
 //expressApp.use(express.static("dist/client"));

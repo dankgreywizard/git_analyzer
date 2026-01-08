@@ -3,7 +3,7 @@
  */
 export interface Message {
   /** The role of the message sender */
-  role: "user" | "assistant";
+  role: "user" | "assistant" | "system";
   /** The text content of the message */
   content: string;
 }

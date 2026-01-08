@@ -1,7 +1,7 @@
 import React from "react";
 
 export interface ChatMessageProps {
-  role: "user" | "assistant";
+  role: "user" | "assistant" | "system";
   content: string;
 }
 

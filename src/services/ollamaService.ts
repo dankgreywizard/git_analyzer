@@ -1,9 +1,9 @@
-import ollama from 'ollama';
 import {Request, Response} from "express";
 import { Message } from "../types/chat";
+import { getAIService } from "./aiService";
 
 /**
- * Handles chat requests by communicating with the Ollama service.
+ * Handles chat requests by communicating with the chosen AI service.
  * Streams the response chunks back to the client.
  * @param req Express request object containing the message history.
  * @param resp Express response object to stream the reply.
@@ -16,12 +16,14 @@ export const ollamaResponse = async (req: Request, resp: Response) => {
           messageArray.push(JSON.parse(content[x]));
     }
     console.log(`request body ${JSON.stringify(messageArray)}`);
-    const response = await ollama.chat({
-        model: 'codellama:latest',
+    
+    const aiService = getAIService();
+    const response = await aiService.chat({
+        model: process.env.AI_MODEL || 'codellama:latest',
         messages: messageArray,
-        think: false,
         stream: true,
     });
+    
     console.log("returning response");
     // Stream chunks as they arrive
     // Ensure a text content type for incremental rendering
