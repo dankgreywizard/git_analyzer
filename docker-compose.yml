@@ -1,0 +1,36 @@
+services:
+  webapp:
+    build: .
+    ports:
+      - "5000:5000"
+    environment:
+      - AI_BASE_URL=http://ollama:11434
+      - NODE_ENV=production
+    volumes:
+      - ./repos:/app/repos
+      - ./data.json:/app/data.json
+    depends_on:
+      ollama:
+        condition: service_healthy
+    restart: unless-stopped
+
+  ollama:
+    image: ollama/ollama:latest
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+      - ./pull-model.sh:/pull-model.sh
+    entrypoint: ["/bin/bash", "/pull-model.sh"]
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  ollama_data:
+
