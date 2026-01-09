@@ -63,9 +63,6 @@ export class GitService {
   async openRepo(url?: string, dir?: string): Promise<{ dir: string }> {
     if (!url && !dir) throw new Error('Missing url or dir');
     const targetDir = url ? this.resolveTargetDir(url, dir) : this.norm(dir!);
-    if (!this.isUnderRepos(targetDir)) {
-      throw new Error('dir must be under repos/');
-    }
     
     // Check if directory exists
     try {
@@ -89,16 +86,18 @@ export class GitService {
   }
 
   /**
-   * Lists all Git repositories in the reposBase directory.
+   * Lists all Git repositories in a given directory.
+   * @param baseDir The directory to search in (defaults to this.reposBase).
    * @returns Array of repository directory names.
    */
-  async listRepos(): Promise<string[]> {
+  async listRepos(baseDir?: string): Promise<string[]> {
+    const targetBase = baseDir ? this.norm(baseDir) : this.reposBase;
     try {
-      const entries = await fs.promises.readdir(this.reposBase, { withFileTypes: true });
+      const entries = await fs.promises.readdir(targetBase, { withFileTypes: true });
       const repos: string[] = [];
       for (const entry of entries) {
         if (entry.isDirectory()) {
-          const dirPath = `${this.reposBase}/${entry.name}`;
+          const dirPath = `${targetBase}/${entry.name}`;
           try {
             // Check if it's a git repo by resolving HEAD
             await git.resolveRef({ fs, dir: dirPath, ref: 'HEAD' });
@@ -123,9 +122,6 @@ export class GitService {
    */
   async readLogWithFiles(dir: string, options?: LogOptions): Promise<{ commits: any[]; note?: string }>{
     const normDir = this.norm(dir);
-    if (!this.isUnderRepos(normDir)) {
-      throw new Error('dir must be under repos/');
-    }
     const ref = options?.ref ?? 'HEAD';
     const depth = options?.depth ?? this.defaultDepth;
 
@@ -215,9 +211,6 @@ export class GitService {
   private resolveTargetDir(url: string, dir?: string): string {
     const base = this.reposBase;
     const chosen = dir && dir.trim().length > 0 ? this.norm(dir) : `${base}/${this.sanitizeRepoName(url)}`;
-    if (!this.isUnderRepos(chosen)) {
-      throw new Error('dir must be under repos/');
-    }
     return chosen;
   }
 

@@ -26,11 +26,12 @@ export default function GitOperations({
   const [showSelectModal, setShowSelectModal] = useState(false);
   const [localRepos, setLocalRepos] = useState<string[]>([]);
   const [loadingRepos, setLoadingRepos] = useState(false);
+  const [baseDir, setBaseDir] = useState("repos");
 
   const fetchRepos = useCallback(async () => {
     setLoadingRepos(true);
     try {
-      const res = await fetch("/api/repos");
+      const res = await fetch(`/api/repos?baseDir=${encodeURIComponent(baseDir)}`);
       const data = await res.json();
       if (res.ok && Array.isArray(data.repos)) {
         setLocalRepos(data.repos);
@@ -40,10 +41,11 @@ export default function GitOperations({
     } finally {
       setLoadingRepos(false);
     }
-  }, []);
+  }, [baseDir]);
 
   const handleSelectRepo = (repoName: string) => {
-    setUrl(`repos/${repoName}`);
+    const prefix = baseDir.endsWith("/") ? baseDir : `${baseDir}/`;
+    setUrl(`${prefix}${repoName}`);
     setShowSelectModal(false);
   };
 
@@ -163,7 +165,7 @@ export default function GitOperations({
               value={url}
               onChange={(e) => setUrl(e.target.value)}
               type="text"
-              placeholder="https://github.com/user/repo.git or repos/name"
+              placeholder="https://github.com/user/repo.git or /path/to/repo"
               className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50 focus:bg-white"
               onKeyDown={(e) => { if (e.key === "Enter") handleOpen(); }}
               disabled={busy || disabled}
@@ -210,25 +212,40 @@ export default function GitOperations({
         onClose={() => setShowSelectModal(false)}
         onContinue={() => setShowSelectModal(false)} // Modal component requires onContinue but we don't really need it for selection
       >
-        <div className="space-y-2">
-          {loadingRepos ? (
-            <div className="text-center py-4">Loading repositories...</div>
-          ) : localRepos.length === 0 ? (
-            <div className="text-center py-4 text-gray-500">No repositories found in repos/ directory.</div>
-          ) : (
-            <div className="grid grid-cols-1 gap-2">
-              {localRepos.map((repo) => (
-                <button
-                  key={repo}
-                  onClick={() => handleSelectRepo(repo)}
-                  className="text-left px-4 py-3 border border-gray-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 transition-colors flex items-center justify-between group"
-                >
-                  <span className="font-medium text-gray-700 group-hover:text-blue-600">{repo}</span>
-                  <span className="text-xs text-gray-400 group-hover:text-blue-400">repos/{repo}</span>
-                </button>
-              ))}
+        <div className="space-y-4">
+          <div>
+            <label className="text-xs text-gray-500 block mb-1">Base Directory to Scan</label>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={baseDir}
+                onChange={(e) => setBaseDir(e.target.value)}
+                placeholder="e.g. repos or /home/user/projects"
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50"
+              />
+              <Button variant="secondary" onClick={fetchRepos} disabled={loadingRepos}>Scan</Button>
             </div>
-          )}
+          </div>
+          <div className="space-y-2 max-h-96 overflow-y-auto">
+            {loadingRepos ? (
+              <div className="text-center py-4">Loading repositories...</div>
+            ) : localRepos.length === 0 ? (
+              <div className="text-center py-4 text-gray-500">No repositories found in {baseDir}.</div>
+            ) : (
+              <div className="grid grid-cols-1 gap-2">
+                {localRepos.map((repo) => (
+                  <button
+                    key={repo}
+                    onClick={() => handleSelectRepo(repo)}
+                    className="text-left px-4 py-3 border border-gray-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 transition-colors flex items-center justify-between group"
+                  >
+                    <span className="font-medium text-gray-700 group-hover:text-blue-600">{repo}</span>
+                    <span className="text-xs text-gray-400 group-hover:text-blue-400">{baseDir}/{repo}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </Modal>
     </div>

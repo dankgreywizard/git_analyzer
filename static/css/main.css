@@ -1,3 +1,5 @@
+@import 'animate.css';
+
 *, ::before, ::after {
   --tw-border-spacing-x: 0;
   --tw-border-spacing-y: 0;
@@ -880,7 +882,6 @@ button:not(:disabled):active {
 /* Custom styles */
 
 /* Import animation libraries */
-@import 'animate.css';
 
 /* Loading animation for streaming */
 @keyframes pulse-dot {

@@ -55,6 +55,17 @@ describe('GitService', () => {
     expect(repos).toEqual(['repo1']);
   });
 
+  it('should list repos from arbitrary directory', async () => {
+    (fs.promises.readdir as any).mockResolvedValue([
+      { name: 'other-repo', isDirectory: () => true },
+    ]);
+    (git.resolveRef as any).mockResolvedValueOnce('oid');
+
+    const repos = await gitService.listRepos('/any/path');
+    expect(fs.promises.readdir).toHaveBeenCalledWith('/any/path', expect.anything());
+    expect(repos).toEqual(['other-repo']);
+  });
+
   it('should handle ENOENT in listRepos', async () => {
     (fs.promises.readdir as any).mockRejectedValue({ code: 'ENOENT' });
     const repos = await gitService.listRepos();
@@ -74,13 +85,24 @@ describe('GitService', () => {
     expect(result.dir).toBe('test-repos/repo1');
   });
 
-  it('should throw error when opening repo outside reposBase', async () => {
-    await expect(gitService.openRepo(undefined, '/outside')).rejects.toThrow('dir must be under repos/');
+  it('should open repo from any directory', async () => {
+    (fs.promises.stat as any).mockResolvedValue({ isDirectory: () => true });
+    (git.resolveRef as any).mockResolvedValue('oid');
+
+    const result = await gitService.openRepo(undefined, '/outside');
+    expect(result.dir).toBe('/outside');
   });
 
   describe('readLogWithFiles', () => {
-    it('should throw error if dir is outside reposBase', async () => {
-      await expect(gitService.readLogWithFiles('/outside')).rejects.toThrow('dir must be under repos/');
+    it('should read log from any directory', async () => {
+      (git.resolveRef as any).mockResolvedValue('oid-head');
+      (git.log as any).mockResolvedValue([
+        { oid: 'oid1', commit: { message: 'msg1', parent: ['oid0'] } },
+      ]);
+      (git as any).walk = vi.fn().mockResolvedValue([]);
+      
+      const result = await gitService.readLogWithFiles('/any/path');
+      expect(result.commits).toHaveLength(1);
     });
 
     it('should return empty commits if ref not found', async () => {
@@ -154,6 +176,7 @@ describe('GitService', () => {
     it('should check if under repos', () => {
       expect((gitService as any).isUnderRepos('test-repos/a')).toBe(true);
       expect((gitService as any).isUnderRepos('test-repos')).toBe(true);
+      // Still works as a helper, but no longer used for restriction
       expect((gitService as any).isUnderRepos('other/a')).toBe(false);
     });
   });

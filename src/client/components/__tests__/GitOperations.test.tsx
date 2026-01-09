@@ -13,7 +13,7 @@ describe('GitOperations', () => {
 
   it('renders input fields for cloning', () => {
     render(<GitOperations onResult={() => {}} />);
-    expect(screen.getByPlaceholderText('https://github.com/user/repo.git or repos/name')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('https://github.com/user/repo.git or /path/to/repo')).toBeInTheDocument();
     expect(screen.getByText('Clone')).toBeInTheDocument();
     expect(screen.getByText('Open')).toBeInTheDocument();
     expect(screen.getByText('Log')).toBeInTheDocument();
@@ -32,7 +32,7 @@ describe('GitOperations', () => {
     const updateStatus = vi.fn();
     render(<GitOperations updateStatus={updateStatus} />);
     
-    const input = screen.getByPlaceholderText('https://github.com/user/repo.git or repos/name');
+    const input = screen.getByPlaceholderText('https://github.com/user/repo.git or /path/to/repo');
     const cloneButton = screen.getByText('Clone');
     
     fireEvent.change(input, { target: { value: 'https://github.com/test/test.git' } });
@@ -57,7 +57,7 @@ describe('GitOperations', () => {
     });
     
     render(<GitOperations />);
-    const input = screen.getByPlaceholderText('https://github.com/user/repo.git or repos/name');
+    const input = screen.getByPlaceholderText('https://github.com/user/repo.git or /path/to/repo');
     const openButton = screen.getByText('Open');
     
     fireEvent.change(input, { target: { value: 'repos/test' } });
@@ -78,7 +78,7 @@ describe('GitOperations', () => {
     });
     
     render(<GitOperations />);
-    const input = screen.getByPlaceholderText('https://github.com/user/repo.git or repos/name');
+    const input = screen.getByPlaceholderText('https://github.com/user/repo.git or /path/to/repo');
     const logButton = screen.getByText('Log');
     
     fireEvent.change(input, { target: { value: 'repos/test' } });
@@ -104,7 +104,7 @@ describe('GitOperations', () => {
     const updateStatus = vi.fn();
     render(<GitOperations updateStatus={updateStatus} />);
     
-    const input = screen.getByPlaceholderText('https://github.com/user/repo.git or repos/name');
+    const input = screen.getByPlaceholderText('https://github.com/user/repo.git or /path/to/repo');
     const openButton = screen.getByText('Open');
     
     fireEvent.change(input, { target: { value: 'invalid-path' } });
@@ -123,7 +123,7 @@ describe('GitOperations', () => {
     const updateStatus = vi.fn();
     render(<GitOperations updateStatus={updateStatus} />);
     
-    const input = screen.getByPlaceholderText('https://github.com/user/repo.git or repos/name');
+    const input = screen.getByPlaceholderText('https://github.com/user/repo.git or /path/to/repo');
     const logButton = screen.getByText('Log');
     
     fireEvent.change(input, { target: { value: 'repos/test' } });
@@ -140,7 +140,7 @@ describe('GitOperations', () => {
       json: async () => ({ commits: [] }),
     });
     render(<GitOperations />);
-    const input = screen.getByPlaceholderText('https://github.com/user/repo.git or repos/name');
+    const input = screen.getByPlaceholderText('https://github.com/user/repo.git or /path/to/repo');
     fireEvent.change(input, { target: { value: 'repos/test' } });
     
     await act(async () => {
@@ -160,7 +160,7 @@ describe('GitOperations', () => {
     const updateStatus = vi.fn();
     render(<GitOperations updateStatus={updateStatus} />);
     
-    const input = screen.getByPlaceholderText('https://github.com/user/repo.git or repos/name');
+    const input = screen.getByPlaceholderText('https://github.com/user/repo.git or /path/to/repo');
     const cloneButton = screen.getByText('Clone');
     
     fireEvent.change(input, { target: { value: 'invalid-url' } });
@@ -184,13 +184,13 @@ describe('GitOperations', () => {
       fireEvent.click(selectButton);
     });
     
-    expect(global.fetch).toHaveBeenCalledWith('/api/repos');
+    expect(global.fetch).toHaveBeenCalledWith('/api/repos?baseDir=repos');
     expect(await screen.findByText('repo1')).toBeInTheDocument();
     
     const repoButton = screen.getByText('repo1');
     fireEvent.click(repoButton);
     
-    const input = screen.getByPlaceholderText('https://github.com/user/repo.git or repos/name') as HTMLInputElement;
+    const input = screen.getByPlaceholderText('https://github.com/user/repo.git or /path/to/repo') as HTMLInputElement;
     expect(input.value).toBe('repos/repo1');
   });
 
@@ -209,7 +209,7 @@ describe('GitOperations', () => {
     (global.fetch as any).mockResolvedValue({ ok: true, json: async () => ({}) });
     render(<GitOperations disabled={true} />);
     const cloneButton = screen.getByText('Clone');
-    const input = screen.getByPlaceholderText('https://github.com/user/repo.git or repos/name');
+    const input = screen.getByPlaceholderText('https://github.com/user/repo.git or /path/to/repo');
     
     fireEvent.change(input, { target: { value: 'https://github.com/test/test.git' } });
     await act(async () => {
@@ -227,7 +227,7 @@ describe('GitOperations', () => {
     const onResult = vi.fn();
     render(<GitOperations onResult={onResult} />);
     
-    const input = screen.getByPlaceholderText('https://github.com/user/repo.git or repos/name');
+    const input = screen.getByPlaceholderText('https://github.com/user/repo.git or /path/to/repo');
     fireEvent.change(input, { target: { value: 'https://github.com/test/test.git' } });
     
     await act(async () => {
@@ -243,7 +243,7 @@ describe('GitOperations', () => {
   it('calls fetch when Open is clicked with a URL', async () => {
     (global.fetch as any).mockResolvedValue({ ok: true, json: async () => ({}) });
     render(<GitOperations />);
-    const input = screen.getByPlaceholderText('https://github.com/user/repo.git or repos/name');
+    const input = screen.getByPlaceholderText('https://github.com/user/repo.git or /path/to/repo');
     fireEvent.change(input, { target: { value: 'https://github.com/test/test.git' } });
     await act(async () => {
       fireEvent.click(screen.getByText('Open'));
@@ -256,7 +256,7 @@ describe('GitOperations', () => {
   it('calls fetch when Log is clicked with a URL', async () => {
     (global.fetch as any).mockResolvedValue({ ok: true, json: async () => ({}) });
     render(<GitOperations />);
-    const input = screen.getByPlaceholderText('https://github.com/user/repo.git or repos/name');
+    const input = screen.getByPlaceholderText('https://github.com/user/repo.git or /path/to/repo');
     fireEvent.change(input, { target: { value: 'https://github.com/test/test.git' } });
     await act(async () => {
       fireEvent.click(screen.getByText('Log'));
@@ -268,7 +268,7 @@ describe('GitOperations', () => {
     (global.fetch as any).mockRejectedValue('Generic Error');
     const updateStatus = vi.fn();
     render(<GitOperations updateStatus={updateStatus} />);
-    const input = screen.getByPlaceholderText('https://github.com/user/repo.git or repos/name');
+    const input = screen.getByPlaceholderText('https://github.com/user/repo.git or /path/to/repo');
     fireEvent.change(input, { target: { value: 'repos/test' } });
     await act(async () => {
       fireEvent.click(screen.getByText('Clone'));

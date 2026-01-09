@@ -14,7 +14,6 @@ This directory contains frontend assets and components for the AI Interface appl
 - **Tailwind CSS** - Utility-first CSS framework
 - **Animate.css** - CSS animation library
 - **AOS (Animate On Scroll)** - Scroll animation library
-- **Bootstrap** - CSS framework (already installed)
 
 ## Usage
 

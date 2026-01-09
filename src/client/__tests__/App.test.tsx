@@ -181,7 +181,7 @@ describe('App', () => {
     });
     
     // Fill the log
-    const input = screen.getByPlaceholderText(/https:\/\/github\.com\/user\/repo\.git or repos\/name/i);
+    const input = screen.getByPlaceholderText(/https:\/\/github\.com\/user\/repo\.git or \/path\/to\/repo/i);
     fireEvent.change(input, { target: { value: '/path/to/repo' } });
     await act(async () => {
         fireEvent.click(screen.getByText('Log'));
@@ -336,7 +336,7 @@ describe('App', () => {
     render(<App />);
     await switchToTab('Git');
     
-    const input = screen.getByPlaceholderText('https://github.com/user/repo.git or repos/name');
+    const input = screen.getByPlaceholderText('https://github.com/user/repo.git or /path/to/repo');
     fireEvent.change(input, { target: { value: 'repos/test' } });
     await act(async () => {
         fireEvent.click(screen.getByText('Log'));
@@ -464,7 +464,7 @@ describe('App', () => {
     });
     
     // Load log
-    const input = screen.getByPlaceholderText('https://github.com/user/repo.git or repos/name');
+    const input = screen.getByPlaceholderText('https://github.com/user/repo.git or /path/to/repo');
     fireEvent.change(input, { target: { value: 'repos/test' } });
     await act(async () => { fireEvent.click(screen.getByText('Log')); });
     
@@ -498,7 +498,7 @@ describe('App', () => {
     });
     // Find the Clone button and trigger a clone to get a result
     const cloneButton = screen.getByText('Clone');
-    const input = screen.getByPlaceholderText(/https:\/\/github\.com\/user\/repo\.git or repos\/name/i);
+    const input = screen.getByPlaceholderText(/https:\/\/github\.com\/user\/repo\.git or \/path\/to\/repo/i);
     fireEvent.change(input, { target: { value: 'https://github.com/test/repo.git' } });
     
     (global.fetch as any).mockImplementation(() => Promise.resolve({ ok: true, json: () => Promise.resolve({ success: true }) }));
@@ -524,7 +524,7 @@ describe('App', () => {
     await switchToTab('Git');
     
     // Load log
-    const input = screen.getByPlaceholderText('https://github.com/user/repo.git or repos/name');
+    const input = screen.getByPlaceholderText('https://github.com/user/repo.git or /path/to/repo');
     fireEvent.change(input, { target: { value: 'repos/test' } });
     await act(async () => { fireEvent.click(screen.getByText('Log')); });
     

@@ -8,10 +8,6 @@
 - **@tailwindcss/typography** - Typography plugin for beautiful text styling
 - **Configuration**: `tailwind.config.js` and `postcss.config.js` created
 
-### Bootstrap v5.3.2
-- Already installed in the project
-- Can be used alongside Tailwind CSS
-
 ## Animation Libraries
 
 ### Animate.css v4.1.1

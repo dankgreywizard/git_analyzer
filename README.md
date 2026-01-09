@@ -9,7 +9,7 @@ A modern web application that combines local AI capabilities with Git repository
 - **Flexible LLM Integration**: Analyze commits for risks, summaries, and testing suggestions using your preferred AI model (Ollama or external providers).
 - **Settings Management**: Easily configure AI providers and models through the built-in Settings interface.
 - **Streaming Responses**: Real-time AI response streaming for a better user experience.
-- **Modern UI**: Built with React, featuring Tailwind CSS v4, Bootstrap 5, and a compact dropdown navigation menu. Defaults to the **Git** view for immediate repository analysis.
+- **Modern UI**: Built with React, featuring Tailwind CSS v4 and a compact dropdown navigation menu. Defaults to the **Git** view for immediate repository analysis.
 - **Git Console**: Interactive console for monitoring Git operations.
 
 ## 🛠 Tech Stack
@@ -24,7 +24,6 @@ A modern web application that combines local AI capabilities with Git repository
 ### Frontend
 - **React**: Component-based UI library.
 - **Tailwind CSS v4**: Utility-first styling with the latest features.
-- **Bootstrap 5**: Reliable UI components and grid system.
 - **Animations**: AOS (Animate On Scroll), Animate.css, and Framer Motion.
 - **Vite**: Ultra-fast frontend tooling and development server.
 - **PostCSS**: CSS transformation and Autoprefixer.

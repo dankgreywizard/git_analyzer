@@ -63,9 +63,10 @@ expressApp.post('/api/open', async (req, res) => {
 });
 
 // Endpoint to list available local repositories
-expressApp.get('/api/repos', async (_req, res) => {
+expressApp.get('/api/repos', async (req, res) => {
     try {
-        const repos = await gitService.listRepos();
+        const baseDir = typeof req.query.baseDir === 'string' ? req.query.baseDir : undefined;
+        const repos = await gitService.listRepos(baseDir);
         res.json({ repos });
     } catch (e: any) {
         console.error('List repos failed', e);
@@ -76,7 +77,7 @@ expressApp.get('/api/repos', async (_req, res) => {
 // Endpoint to read git log from a cloned repo
 // Accepts either:
 //   - url: a repository URL (preferred) → server maps to repos/<sanitized>
-//   - dir: a local path under repos/ OR mistakenly a URL (server will map URL → local)
+//   - dir: a local path OR mistakenly a URL (server will map URL → local)
 expressApp.get('/api/log', async (req, res) => {
     try {
         // Accept both `limit` and `depth`; clamp to [1, 1000]
@@ -210,7 +211,6 @@ expressApp.post('/api/config', (req, res) => {
 });
 
 expressApp.use(express.static("static"));
-expressApp.use(express.static("node_modules/bootstrap/dist"));
 //expressApp.use(express.static("dist/client"));
 expressApp.use((req, resp) => proxy.web(req,resp));
 
