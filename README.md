@@ -14,6 +14,10 @@ A modern web application that combines local AI capabilities with Git repository
 
 ## 🛠 Tech Stack
 
+### Infrastructure
+- **Docker**: Containerized deployment for easy setup and distribution.
+- **Multi-stage Builds**: Optimized Docker images using Alpine Linux.
+
 ### Backend
 - **Node.js & Express**: Core server framework.
 - **TypeScript**: Typed development for the backend.
@@ -43,8 +47,8 @@ The application can be configured using environment variables:
 - `WDS_PORT`: Frontend development server port (default: 5100).
 - `BODY_LIMIT`: Maximum JSON request size (e.g., '10mb').
 - `AI_API_KEY`: API key for an external AI provider (e.g., OpenAI, Claude).
-- `AI_BASE_URL`: Base URL for the external AI provider (default: 'https://api.openai.com/v1').
-- `AI_MODEL`: Default AI model to use (default: 'codellama:latest' for Ollama).
+- `AI_BASE_URL`: Base URL for the AI provider. Defaults to 'https://api.openai.com/v1' if `AI_API_KEY` is set, otherwise defaults to Ollama's default (http://localhost:11434).
+- `AI_MODEL`: Default AI model to use (default: 'codellama:latest' for Ollama, 'gpt-4o' for OpenAI).
 - `AI_MODELS`: Comma-separated list of models to display in the UI when using an external provider.
 
 ## ⚙️ Installation & Setup
@@ -70,6 +74,66 @@ The application can be configured using environment variables:
 
 The project uses a dual-server setup for development.
 
+### Docker Compose (Recommended)
+The easiest way to run the application with a local AI is using Docker Compose, which starts both the web application and an Ollama instance.
+
+1. **Start the application**:
+   ```bash
+   docker compose up -d
+   ```
+   *Note: On first run, it will build the webapp image, pull the Ollama image, and automatically pull the `codellama` AI model. The Ollama service runs internally and does not conflict with any Ollama instance you might have running on your host machine.*
+
+2. **Wait for Model Pull**:
+   The `codellama` model is pulled automatically in the background. You can monitor the progress with:
+   ```bash
+   docker compose logs -f ollama
+   ```
+
+The application will be accessible at http://localhost:5000.
+
+#### Troubleshooting: Port 11434 already in use
+If you encounter an error saying `address already in use` for port `11434`, it means you have Ollama running on your host. We have configured the Docker Compose file to use internal networking to avoid this, but if you've modified it to expose ports, you should either stop the host service or change the port mapping in `docker-compose.yml`.
+
+### Docker Mode (Manual)
+If you prefer to run only the webapp container:
+
+#### Connecting to Ollama on Host
+If you are running Ollama on your host machine (not in Docker), you need to allow the container to reach the host's network.
+
+**For Linux users**:
+```bash
+docker run -p 5000:5000 \
+  --add-host=host.docker.internal:host-gateway \
+  -e AI_BASE_URL=http://host.docker.internal:11434 \
+  webapp:latest
+```
+
+**For macOS/Windows users**:
+```bash
+docker run -p 5000:5000 \
+  -e AI_BASE_URL=http://host.docker.internal:11434 \
+  webapp:latest
+```
+
+*Note: Ensure Ollama is configured to listen on all interfaces (OLLAMA_HOST=0.0.0.0).*
+
+#### Data Persistence (Optional)
+To persist cloned repositories and AI configuration across container restarts, mount volumes for the `/app/repos` directory and the `data.json` file:
+```bash
+docker run -p 5000:5000 \
+  -v $(pwd)/repos:/app/repos \
+  -v $(pwd)/data.json:/app/data.json \
+  webapp:latest
+```
+Note: Ensure `data.json` exists on your host before mounting it as a file, or mount a directory if preferred.
+
+### Production Build
+To create a production distribution manually:
+```bash
+npm run build
+```
+This builds the CSS, frontend (Vite), and backend (TypeScript) into the `dist/` directory.
+
 ### Development Mode
 To start both the backend server and frontend development server simultaneously:
 ```bash
@@ -81,6 +145,7 @@ npm start
 ### Individual Scripts
 - **Start Backend**: `npm run server`
 - **Start Frontend**: `npm run client`
+- **Build All**: `npm run build`
 - **Build CSS**: `npm run build:css`
 - **Run Tests**: `npm test` (149 tests currently passing across 21 files)
 

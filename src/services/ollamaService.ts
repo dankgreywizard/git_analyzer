@@ -1,6 +1,7 @@
 import {Request, Response} from "express";
 import { Message } from "../types/chat";
 import { getAIService } from "./aiService";
+import { configService } from "./configService";
 
 /**
  * Handles chat requests by communicating with the chosen AI service.
@@ -17,9 +18,10 @@ export const ollamaResponse = async (req: Request, resp: Response) => {
     }
     console.log(`request body ${JSON.stringify(messageArray)}`);
     
+    const config = configService.getConfig();
     const aiService = getAIService();
     const response = await aiService.chat({
-        model: process.env.AI_MODEL || 'codellama:latest',
+        model: config.defaultModel || 'codellama:latest',
         messages: messageArray,
         stream: true,
     });

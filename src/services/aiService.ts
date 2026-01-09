@@ -1,4 +1,4 @@
-import ollama from 'ollama';
+import { Ollama } from 'ollama';
 import { Message } from '../types/chat';
 import { configService } from './configService';
 
@@ -12,6 +12,12 @@ export interface AIService {
 }
 
 export class OllamaAIService implements AIService {
+    private client: Ollama;
+
+    constructor(baseUrl?: string) {
+        this.client = new Ollama(baseUrl ? { host: baseUrl } : undefined);
+    }
+
     async chat(options: {
         model: string;
         messages: Message[];
@@ -21,12 +27,23 @@ export class OllamaAIService implements AIService {
             ...options,
             think: false,
         };
-        return await ollama.chat(chatOptions);
+        return await this.client.chat(chatOptions);
     }
 
     async listModels(): Promise<string[]> {
-        const list: any = await (ollama as any).list?.();
-        return Array.isArray(list?.models) ? list.models.map((m: any) => m.name).filter(Boolean) : [];
+        try {
+            const list: any = await this.client.list();
+            return Array.isArray(list?.models) ? list.models.map((m: any) => m.name).filter(Boolean) : [];
+        } catch (e: any) {
+            if (e.cause?.code === 'ECONNREFUSED') {
+                // @ts-ignore - access private config for better error message
+                const host = this.client.config?.host || 'http://localhost:11434';
+                console.error(`Failed to connect to Ollama at ${host}. If running in Docker, see README for connection instructions.`);
+            } else {
+                console.error('Failed to list Ollama models', e);
+            }
+            return [];
+        }
     }
 }
 
@@ -108,11 +125,12 @@ export class ExternalAIService implements AIService {
 export function getAIService(): AIService {
     const config = configService.getConfig();
     const apiKey = config.apiKey;
+    const baseUrl = config.baseUrl;
+    
     if (apiKey) {
         console.log("Using external AI provider");
-        const baseUrl = config.baseUrl || 'https://api.openai.com/v1';
-        return new ExternalAIService(apiKey, baseUrl);
+        return new ExternalAIService(apiKey, baseUrl || 'https://api.openai.com/v1');
     }
-    console.log("Using Ollama provider");
-    return new OllamaAIService();
+    console.log("Using Ollama provider" + (baseUrl ? ` at ${baseUrl}` : ""));
+    return new OllamaAIService(baseUrl);
 }

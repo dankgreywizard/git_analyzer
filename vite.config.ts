@@ -19,6 +19,10 @@ export default defineConfig({
     },
   },
   publicDir: 'static',
+  build: {
+    outDir: 'dist/client',
+    emptyOutDir: true,
+  },
   test: {
     globals: true,
     environment: 'jsdom',

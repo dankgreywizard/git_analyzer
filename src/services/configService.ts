@@ -48,10 +48,16 @@ export class ConfigService {
     }
 
     getConfig(): AIConfig {
+        const apiKey = this.config.apiKey || process.env.AI_API_KEY;
+        const baseUrl = this.config.baseUrl || process.env.AI_BASE_URL;
+        const defaultModel = this.config.defaultModel || process.env.AI_MODEL;
+
         return {
-            apiKey: this.config.apiKey || process.env.AI_API_KEY,
-            baseUrl: this.config.baseUrl || process.env.AI_BASE_URL || 'https://api.openai.com/v1',
-            defaultModel: this.config.defaultModel || process.env.AI_MODEL,
+            apiKey: apiKey,
+            // Default to OpenAI only if apiKey is provided and no baseUrl is set
+            baseUrl: baseUrl || (apiKey ? 'https://api.openai.com/v1' : ''),
+            // Default to codellama:latest only if no apiKey is provided
+            defaultModel: defaultModel || (apiKey ? 'gpt-4o' : 'codellama:latest'),
             availableModels: this.config.availableModels || process.env.AI_MODELS,
         };
     }

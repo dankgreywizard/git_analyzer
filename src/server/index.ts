@@ -1,5 +1,6 @@
 import { createServer } from "http";
 import express, {Express, Request, Response } from "express";
+import path from "path";
 import { GitEntry } from "../types/git";
 import { Message } from "../types/chat";
 import { ollamaResponse } from "../services/ollamaService";
@@ -211,11 +212,23 @@ expressApp.post('/api/config', (req, res) => {
 });
 
 expressApp.use(express.static("static"));
-//expressApp.use(express.static("dist/client"));
-expressApp.use((req, resp) => proxy.web(req,resp));
+if (process.env.NODE_ENV === 'production') {
+    expressApp.use(express.static("dist/client"));
+    // Handle SPA routing
+    expressApp.get('*', (req, res, next) => {
+        if (req.path.startsWith('/api') || req.path.startsWith('/read')) {
+            return next();
+        }
+        res.sendFile(path.resolve(__dirname, '../../dist/client/index.html'));
+    });
+} else {
+    expressApp.use((req, resp) => proxy.web(req,resp));
+}
 
 const server = createServer(expressApp);
-server.on('upgrade', (req, socket, head) => proxy.ws(req, socket, head));
+if (process.env.NODE_ENV !== 'production') {
+    server.on('upgrade', (req, socket, head) => proxy.ws(req, socket, head));
+}
 server.listen(port,
     () => console.log(`HTTP Server listening on port ${port}`));
 
