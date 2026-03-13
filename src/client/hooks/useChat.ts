@@ -15,6 +15,84 @@ export function useChat() {
     if (ctrl) ctrl.abort();
   }, []);
 
+  const streamResponse = useCallback(async (
+    res: Response,
+    controller: AbortController,
+    onUpdateStatus?: (text: string, color: "gray" | "yellow" | "green" | "red") => void,
+    scrollToBottom?: () => void,
+    onSuccess?: () => void
+  ) => {
+    onUpdateStatus?.("Streaming...", "yellow");
+    const reader = res.body?.getReader();
+    if (!reader) throw new Error("Streaming not supported");
+    const decoder = new TextDecoder();
+    let aiText = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      aiText += decoder.decode(value, { stream: true });
+      setMessages((prev) => {
+        const updated = [...prev];
+        if (updated.length > 0 && updated[updated.length - 1].role === "assistant") {
+          updated[updated.length - 1] = { ...updated[updated.length - 1], content: aiText };
+        }
+        return updated;
+      });
+      scrollToBottom?.();
+    }
+
+    const finalChunk = decoder.decode();
+    if (finalChunk) {
+      aiText += finalChunk;
+      setMessages((prev) => {
+        const updated = [...prev];
+        if (updated.length > 0 && updated[updated.length - 1].role === "assistant") {
+          updated[updated.length - 1] = { ...updated[updated.length - 1], content: aiText };
+        }
+        return updated;
+      });
+    }
+
+    setSending(false);
+    onUpdateStatus?.("Ready", "green");
+    scrollToBottom?.();
+    onSuccess?.();
+  }, []);
+
+  const handleError = useCallback((
+    errorMsg: string,
+    controller: AbortController,
+    onUpdateStatus?: (text: string, color: "gray" | "yellow" | "green" | "red") => void,
+    isAnalysis: boolean = false
+  ) => {
+    if (controller.signal.aborted) {
+      onUpdateStatus?.("Cancelled", "yellow");
+      setMessages((prev) => {
+        const last = prev[prev.length - 1];
+        if (last && last.role === "assistant" && !last.content) {
+          return prev.slice(0, -1);
+        }
+        return prev;
+      });
+    } else {
+      console.error(errorMsg);
+      onUpdateStatus?.("Error", "red");
+      setMessages((prev) => {
+        const last = prev[prev.length - 1];
+        const updated = [...prev];
+        const errorContent = isAnalysis ? `Analysis Error: ${errorMsg}` : `Error: ${errorMsg}`;
+        if (last && last.role === "assistant") {
+          updated[updated.length - 1] = { role: "assistant", content: errorContent, isError: true };
+        } else {
+          updated.push({ role: "assistant", content: errorContent, isError: true });
+        }
+        return updated;
+      });
+    }
+    setSending(false);
+  }, []);
+
   const sendMessage = useCallback(async (
     userInput: string, 
     onSuccess?: () => void, 
@@ -27,71 +105,34 @@ export function useChat() {
     setSending(true);
     onUpdateStatus?.("Sending...", "yellow");
 
-    // Placeholder assistant message index to append stream
-    let aiIndex = -1;
-    setMessages((prev) => {
-      aiIndex = prev.length + 1; // after appending user
-      return [...prev, { role: "assistant", content: "" }];
-    });
+    setMessages((prev) => [...prev, { role: "assistant", content: "" }]);
 
     const controller = new AbortController();
     abortRef.current = controller;
 
     try {
-      const payload = [...messages, { role: "user", content: userInput }].map((m) => JSON.stringify(m));
+      const payload = messages.concat({ role: "user", content: userInput }).map((m) => {
+        const { role, content } = m;
+        return { role, content };
+      });
       const res = await fetch("/read", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
         signal: controller.signal,
       });
-      if (!res.ok) throw new Error(res.statusText || "Request failed");
-      onUpdateStatus?.("Streaming...", "yellow");
-
-      const reader = res.body?.getReader();
-      if (!reader) throw new Error("Streaming not supported");
-      const decoder = new TextDecoder();
-      let aiText = "";
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        aiText += decoder.decode(value, { stream: true });
-        setMessages((prev) => {
-          const copy = [...prev];
-          const idx = copy.findIndex((m, i) => m.role === "assistant" && i >= aiIndex - 1);
-          const target = idx >= 0 ? idx : copy.length - 1;
-          copy[target] = { ...copy[target], content: aiText };
-          return copy;
-        });
-        scrollToBottom?.();
-      }
-      
-      const finalChunk = decoder.decode();
-      if (finalChunk) {
-        const finalText = aiText + finalChunk;
-        setMessages((prev) => {
-          const copy = [...prev];
-          copy[copy.length - 1] = { role: "assistant", content: finalText };
-          return copy;
-        });
-      }
-      
-      setSending(false);
-      onUpdateStatus?.("Ready", "green");
-      scrollToBottom?.();
-      onSuccess?.();
-    } catch (e: any) {
-      if (controller.signal.aborted) {
-        onUpdateStatus?.("Cancelled", "yellow");
+      if (res.ok) {
+        await streamResponse(res, controller, onUpdateStatus, scrollToBottom, onSuccess);
       } else {
-        console.error(e);
-        onUpdateStatus?.("Error", "red");
+        const errorMsg = res.statusText || "Request failed";
+        handleError(errorMsg, controller, onUpdateStatus);
       }
-      setSending(false);
+    } catch (e: any) {
+      handleError(e?.message || String(e), controller, onUpdateStatus);
     } finally {
       abortRef.current = null;
     }
-  }, [messages, sending, addMessage]);
+  }, [messages, sending, addMessage, streamResponse, handleError]);
 
   const sendAnalysisRequest = useCallback(async (
     userMsg: string,
@@ -103,68 +144,29 @@ export function useChat() {
     setSending(true);
     onUpdateStatus?.('Analyzing commits...', 'yellow');
 
-    let aiIndex = -1;
-    setMessages((prev) => {
-      aiIndex = prev.length + 1; // after appended user
-      return [...prev, { role: 'assistant', content: '' }];
-    });
-
     const controller = new AbortController();
     abortRef.current = controller;
 
     try {
+      setMessages((prev) => [...prev, { role: 'assistant', content: '' }]);
       const res = await fetch('/api/analyze-commits', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
         signal: controller.signal,
       });
-      if (!res.ok) throw new Error((await res.text()) || 'Analyze failed');
-      onUpdateStatus?.('Streaming analysis...', 'yellow');
-
-      const reader = res.body?.getReader();
-      if (!reader) throw new Error('Streaming not supported');
-      const decoder = new TextDecoder();
-      let aiText = "";
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        aiText += decoder.decode(value, { stream: true });
-        setMessages((prev) => {
-          const copy = [...prev];
-          const idx = copy.findIndex((m, i) => m.role === 'assistant' && i >= aiIndex - 1);
-          const target = idx >= 0 ? idx : copy.length - 1;
-          copy[target] = { ...copy[target], content: aiText };
-          return copy;
-        });
-        scrollToBottom?.();
-      }
-      
-      const finalChunk = decoder.decode();
-      if (finalChunk) {
-        const finalText = aiText + finalChunk;
-        setMessages((prev) => {
-          const copy = [...prev];
-          copy[copy.length - 1] = { role: 'assistant', content: finalText };
-          return copy;
-        });
-      }
-      
-      setSending(false);
-      onUpdateStatus?.('Ready', 'green');
-      scrollToBottom?.();
-    } catch (e: any) {
-      if (controller.signal.aborted) {
-        onUpdateStatus?.('Cancelled', 'yellow');
+      if (res.ok) {
+        await streamResponse(res, controller, onUpdateStatus, scrollToBottom);
       } else {
-        console.error(e);
-        onUpdateStatus?.('Error', 'red');
+        const errorMsg = (await res.text()) || 'Analyze failed';
+        handleError(errorMsg, controller, onUpdateStatus, true);
       }
-      setSending(false);
+    } catch (e: any) {
+      handleError(e?.message || String(e), controller, onUpdateStatus, true);
     } finally {
       abortRef.current = null;
     }
-  }, [addMessage]);
+  }, [addMessage, streamResponse, handleError]);
 
   return {
     messages,

@@ -15,6 +15,7 @@ describe('GitView', () => {
     setSelectedModel: vi.fn(),
     models: ['codellama:latest', 'llama3'],
     analyzeCommitsWithAI: vi.fn(),
+    checkoutSelectedCommits: vi.fn(),
     sending: false,
     commitLog: [],
     selectedCommitOids: new Set<string>(),

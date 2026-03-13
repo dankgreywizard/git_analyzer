@@ -16,3 +16,9 @@ Thumbs.db
 .postcss-cache/
 *.swp
 *.swo
+:memory:
+repos/
+data.json.bak
+.output.txt
+.claude/
+.junie/
