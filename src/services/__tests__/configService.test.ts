@@ -56,7 +56,7 @@ describe('ConfigService', () => {
 
         expect(config.apiKey).toBe('env-key');
         expect(config.baseUrl).toBe('https://env.api');
-        expect(config.defaultModel).toBeUndefined();
+        expect(config.defaultModel).toBe('gpt-4o');
     });
 
     it('should update and save config', () => {

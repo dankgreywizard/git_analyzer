@@ -1,11 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
 import { ollamaResponse } from '../ollamaService';
-import ollama from 'ollama';
+import { getAIService } from '../aiService';
 
-vi.mock('ollama', () => ({
-  default: {
-    chat: vi.fn(),
-  },
+vi.mock('../aiService', () => ({
+  getAIService: vi.fn(),
 }));
 
 describe('ollamaService', () => {
@@ -19,12 +17,15 @@ describe('ollamaService', () => {
       end: vi.fn(),
     } as any;
 
-    const mockStream = [
-      { message: { content: 'Hi' } },
-      { message: { content: ' there' } },
-    ];
+    const mockStream = (async function* () {
+      yield { message: { content: 'Hi' } };
+      yield { message: { content: ' there' } };
+    })();
 
-    (ollama.chat as any).mockResolvedValue(mockStream);
+    vi.mocked(getAIService).mockReturnValue({
+      chat: vi.fn().mockResolvedValue(mockStream),
+      listModels: vi.fn(),
+    } as any);
 
     await ollamaResponse(req, resp);
 
@@ -44,14 +45,17 @@ describe('ollamaService', () => {
       end: vi.fn(),
     } as any;
 
-    const mockStream = [
-      { response: 'Chunk1' },
-      { message: { content: 'Chunk2' } },
-      null,
-      {},
-    ];
+    const mockStream = (async function* () {
+      yield { response: 'Chunk1' };
+      yield { message: { content: 'Chunk2' } };
+      yield null;
+      yield {};
+    })();
 
-    (ollama.chat as any).mockResolvedValue(mockStream);
+    vi.mocked(getAIService).mockReturnValue({
+      chat: vi.fn().mockResolvedValue(mockStream),
+      listModels: vi.fn(),
+    } as any);
 
     await ollamaResponse(req, resp);
 

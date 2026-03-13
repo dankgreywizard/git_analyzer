@@ -3,11 +3,13 @@ import { getAIService, OllamaAIService, ExternalAIService } from '../aiService';
 import ollama from 'ollama';
 import { configService } from '../configService';
 
-vi.mock('ollama', () => ({
-    default: {
-        chat: vi.fn(),
-    },
-}));
+vi.mock('ollama', () => {
+    class MockOllama {
+        chat = vi.fn();
+        list = vi.fn();
+    }
+    return { Ollama: MockOllama };
+});
 
 vi.mock('../configService', () => ({
     configService: {
