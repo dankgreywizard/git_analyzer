@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { GitService } from '../gitService';
+import {beforeEach, describe, expect, it, vi} from 'vitest';
+import {GitService} from '../gitService';
 import git from 'isomorphic-git';
 import fs from 'fs';
 
@@ -85,12 +85,77 @@ describe('GitService', () => {
     expect(result.dir).toBe('test-repos/repo1');
   });
 
-  it('should open repo from any directory', async () => {
-    (fs.promises.stat as any).mockResolvedValue({ isDirectory: () => true });
-    (git.resolveRef as any).mockResolvedValue('oid');
+  it('should throw error if outside repos base', async () => {
+    await expect(gitService.openRepo(undefined, '/outside'))
+      .rejects.toThrow('outside repos base');
+  });
 
-    const result = await gitService.openRepo(undefined, '/outside');
-    expect(result.dir).toBe('/outside');
+  describe('checkout', () => {
+    it('should checkout a commit into a branch', async () => {
+      const dir = 'test-repos/repo1';
+      const oid = '1234567890abcdef';
+      const branch = 'test-branch';
+
+      (git.branch as any).mockResolvedValue(undefined);
+      (git.checkout as any).mockResolvedValue(undefined);
+
+      const result = await gitService.checkout(dir, oid, branch);
+
+      expect(git.branch).toHaveBeenCalledWith(expect.objectContaining({
+        dir: 'test-repos/repo1',
+        ref: branch,
+        object: oid,
+      }));
+      expect(git.checkout).toHaveBeenCalledWith(expect.objectContaining({
+        dir: 'test-repos/repo1',
+        ref: branch,
+      }));
+      expect(result.branch).toBe(branch);
+    });
+
+    it('should include diffs when listing changed files', async () => {
+        const dir = 'test-repos/repo1';
+        const oldOid = 'old';
+        const newOid = 'new';
+        
+        const mockEntry = {
+            type: () => 'blob',
+            oid: () => 'blob-oid',
+            content: () => Buffer.from('hello world')
+        };
+        
+        (git.walk as any).mockImplementation(async ({ map }: any) => {
+            return [await map('file.txt', [null, mockEntry])];
+        });
+
+        const files = await gitService.listChangedFiles(dir, oldOid, newOid);
+        expect(files[0]).toMatchObject({
+            path: 'file.txt',
+            status: 'added',
+            diff: expect.stringContaining('hello world')
+        });
+    });
+
+    it('should handle AlreadyExistsError in branch creation', async () => {
+      const dir = 'test-repos/repo1';
+      const oid = '1234567890abcdef';
+      const branch = 'test-branch';
+
+      const error = new Error('Already exists');
+      (error as any).code = 'AlreadyExistsError';
+
+      (git.branch as any).mockRejectedValue(error);
+      (git.checkout as any).mockResolvedValue(undefined);
+
+      const result = await gitService.checkout(dir, oid, branch);
+
+      expect(result.branch).toBe(branch);
+      expect(git.checkout).toHaveBeenCalled();
+    });
+
+    it('should fail if outside repos base', async () => {
+      await expect(gitService.checkout('/outside', 'oid')).rejects.toThrow('outside repos base');
+    });
   });
 
   describe('readLogWithFiles', () => {
@@ -119,7 +184,7 @@ describe('GitService', () => {
         { oid: 'oid2', commit: { message: 'msg2', parent: [] } },
       ]);
       (git as any).walk = vi.fn().mockResolvedValue([
-        { path: 'file1.txt', status: 'modified' }
+        { path: 'file1.txt', status: 'modified', diff: 'some diff' }
       ]);
       (git as any).TREE = vi.fn().mockReturnValue({});
 
@@ -143,27 +208,45 @@ describe('GitService', () => {
     });
 
     it('should test listChangedFiles walk map logic', async () => {
-      const walkMock = vi.fn().mockImplementation(async (options) => {
-        const { map } = options;
+      (git as any).walk = vi.fn().mockImplementation(async (options) => {
+        const {map} = options;
         const results = [
-          await map('.', [{}, {}]), // skip .
-          await map('dir', [{ type: () => 'tree' }, { type: () => 'tree' }]), // skip trees
-          await map('file1', [{ type: () => 'blob', oid: () => 'oid1' }, { type: () => 'blob', oid: () => 'oid1' }]), // skip same oid
-          await map('file2', [{ type: () => 'blob', oid: () => 'oid1' }, { type: () => 'blob', oid: () => 'oid2' }]), // modified
-          await map('file3', [null, { type: () => 'blob', oid: () => 'oid2' }]), // added
-          await map('file4', [{ type: () => 'blob', oid: () => 'oid1' }, null]), // deleted
+          await map('.', [null, null]), // skip .
+          await map('dir', [{type: async () => 'tree'}, {type: async () => 'tree'}]), // skip trees
+          await map('file1', [{
+            type: async () => 'blob',
+            oid: async () => 'oid1',
+            content: async () => Buffer.from('a')
+          }, {type: async () => 'blob', oid: async () => 'oid1', content: async () => Buffer.from('a')}]), // skip same oid
+          await map('file2', [{
+            type: async () => 'blob',
+            oid: async () => 'oid1',
+            content: async () => Buffer.from('old')
+          }, {type: async () => 'blob', oid: async () => 'oid2', content: async () => Buffer.from('new')}]), // modified
+          await map('file3', [null, {
+            type: async () => 'blob',
+            oid: async () => 'oid2',
+            content: async () => Buffer.from('added')
+          }]), // added
+          await map('file4', [{
+            type: async () => 'blob',
+            oid: async () => 'oid1',
+            content: async () => Buffer.from('deleted')
+          }, null]), // deleted
         ];
         return results.filter(Boolean);
       });
-      (git as any).walk = walkMock;
       (git as any).TREE = vi.fn().mockReturnValue({});
 
       const result = await (gitService as any).listChangedFiles('test-repos/repo1', 'old', 'new');
-      expect(result).toEqual([
-        { path: 'file2', status: 'modified' },
-        { path: 'file3', status: 'added' },
-        { path: 'file4', status: 'deleted' },
-      ]);
+      expect(result).toHaveLength(3);
+      expect(result[0].path).toBe('file2');
+      expect(result[0].status).toBe('modified');
+      expect(result[0].diff).toContain('new');
+      expect(result[1].path).toBe('file3');
+      expect(result[1].status).toBe('added');
+      expect(result[2].path).toBe('file4');
+      expect(result[2].status).toBe('deleted');
     });
   });
 

@@ -6,6 +6,8 @@ export interface Message {
   role: "user" | "assistant" | "system";
   /** The text content of the message */
   content: string;
+  /** Optional error indicator */
+  isError?: boolean;
 }
 
 /**

@@ -40,6 +40,9 @@ export class GitService {
   async cloneRepo(url: string, dir?: string, options?: CloneOptions): Promise<{ dir: string }> {
     if (!url) throw new Error('Missing url');
     const targetDir = this.resolveTargetDir(url, dir);
+    if (!this.isUnderRepos(targetDir)) {
+      throw new Error(`Clone failed: ${targetDir} is outside repos base`);
+    }
     await this.ensureDir(targetDir);
     await git.clone({
       fs,
@@ -64,6 +67,10 @@ export class GitService {
     if (!url && !dir) throw new Error('Missing url or dir');
     const targetDir = url ? this.resolveTargetDir(url, dir) : this.norm(dir!);
     
+    if (!this.isUnderRepos(targetDir)) {
+      throw new Error(`Open failed: ${targetDir} is outside repos base`);
+    }
+
     // Check if directory exists
     try {
       const stats = await fs.promises.stat(targetDir);
@@ -83,6 +90,46 @@ export class GitService {
     }
 
     return { dir: targetDir };
+  }
+
+  /**
+   * Checks out a specific commit into a new or existing branch.
+   * @param dir The repository directory.
+   * @param ref The commit OID or reference to check out.
+   * @param branch Optional branch name to create/checkout.
+   * @param force Optional force flag.
+   */
+  async checkout(dir: string, ref: string, branch?: string, force = false): Promise<{ branch: string }> {
+    const targetDir = this.norm(dir);
+    if (!this.isUnderRepos(targetDir)) {
+      throw new Error(`Checkout failed: ${targetDir} is outside repos base`);
+    }
+
+    const checkoutBranch = branch || `branch-${ref.slice(0, 7)}`;
+
+    try {
+      // Create branch if it doesn't exist
+      try {
+        await git.branch({ fs, dir: targetDir, ref: checkoutBranch, object: ref });
+      } catch (e: any) {
+        if (e.code !== 'AlreadyExistsError') {
+          throw e;
+        }
+      }
+
+      // Check out the branch
+      await git.checkout({
+        fs,
+        dir: targetDir,
+        ref: checkoutBranch,
+        force,
+      });
+
+      return { branch: checkoutBranch };
+    } catch (e: any) {
+      console.error(`Checkout failed for ${ref}`, e);
+      throw new Error(`Checkout failed for ${ref}: ${e.message}`);
+    }
   }
 
   /**
@@ -157,13 +204,14 @@ export class GitService {
   }
 
   /**
-   * Compares two commit OIDs and lists the files that changed between them.
+   * Compares two commit OIDs and lists the files that changed between them,
+   * optionally including the content diff.
    * @param dir The repository directory.
    * @param oldOid The base commit OID.
    * @param newOid The target commit OID.
-   * @returns Array of changed files with their status.
+   * @returns Array of changed files with their status and optional diff.
    */
-  private async listChangedFiles(dir: string, oldOid: string | undefined, newOid: string): Promise<Array<{ path: string; status: 'added'|'modified'|'deleted' }>> {
+  async listChangedFiles(dir: string, oldOid: string | undefined, newOid: string): Promise<Array<{ path: string; status: 'added'|'modified'|'deleted'; diff?: string }>> {
     // Use isomorphic-git walk over two TREE snapshots
     const trees: any[] = [];
     const TREE: any = (git as any).TREE;
@@ -189,7 +237,81 @@ export class GitService {
         let status: 'added'|'modified'|'deleted' = 'modified';
         if (A && !B) status = 'deleted';
         else if (!A && B) status = 'added';
-        return { path: filepath, status };
+
+        let diff = '';
+        try {
+          const contentA = A ? await A.content() : Buffer.alloc(0);
+          const contentB = B ? await B.content() : Buffer.alloc(0);
+          const textA = new TextDecoder().decode(contentA);
+          const textB = new TextDecoder().decode(contentB);
+          // Simplified "diff" - just show the new content if added, or simple change indicator
+          // In a real app we might use a diff library, but for AI analysis, providing 
+          // both contents or a simple representation works.
+    if (status === 'added') {
+      diff = `File: ${filepath} (added)\nContent:\n${textB.slice(0, 10000)}${textB.length > 10000 ? '\n[... truncated ...]' : ''}`;
+    } else if (status === 'deleted') {
+      diff = `File: ${filepath} (deleted)\nFormer Content:\n${textA.slice(0, 10000)}${textA.length > 10000 ? '\n[... truncated ...]' : ''}`;
+    } else {
+      // modified - use a very basic line-by-line comparison for the AI
+      const linesA = textA.split('\n');
+      const linesB = textB.split('\n');
+      
+      // Let's implement a slightly better context-aware diff for the AI
+      // if it's not too huge.
+      if (linesA.length < 2000 && linesB.length < 2000) {
+        diff = `File: ${filepath} (modified)\n--- old\n+++ new\n`;
+        
+        // Very simple diff to highlight changes for the AI
+        // This helps the AI see exactly what changed line-by-line
+        let i = 0, j = 0;
+        while (i < linesA.length || j < linesB.length) {
+          if (i < linesA.length && j < linesB.length && linesA[i] === linesB[j]) {
+            // Context line (only show if near a change)
+            // For now, let's show all lines if the file is small enough, 
+            // or just the changes if we want to be more efficient.
+            // Simplified: show everything with markers to be safe for LLM
+            diff += `  ${linesA[i]}\n`;
+            i++; j++;
+          } else {
+            // Change detected
+            let lookAhead = 1;
+            let foundMatch = false;
+            while (lookAhead < 10 && (i + lookAhead < linesA.length || j + lookAhead < linesB.length)) {
+              if (i + lookAhead < linesA.length && linesA[i+lookAhead] === linesB[j]) {
+                for(let k=0; k<lookAhead; k++) diff += `-${linesA[i+k]}\n`;
+                i += lookAhead;
+                foundMatch = true;
+                break;
+              }
+              if (j + lookAhead < linesB.length && linesA[i] === linesB[j+lookAhead]) {
+                for(let k=0; k<lookAhead; k++) diff += `+${linesB[j+k]}\n`;
+                j += lookAhead;
+                foundMatch = true;
+                break;
+              }
+              lookAhead++;
+            }
+            if (!foundMatch) {
+               if (i < linesA.length) { diff += `-${linesA[i]}\n`; i++; }
+               if (j < linesB.length) { diff += `+${linesB[j]}\n`; j++; }
+            }
+          }
+          // Cap diff size per file
+          if (diff.length > 10000) {
+            diff += `\n[... diff truncated due to size ...]`;
+            break;
+          }
+        }
+      } else {
+        diff = `File: ${filepath} (modified)\n[Content too large for detailed diff, providing new content summary]\n`;
+        diff += textB.slice(0, 5000) + (textB.length > 5000 ? '\n...' : '');
+      }
+    }
+        } catch (e) {
+          diff = `Error reading content for ${filepath}`;
+        }
+
+        return { path: filepath, status, diff };
       }
     });
     return entries.filter(Boolean);
@@ -210,8 +332,7 @@ export class GitService {
 
   private resolveTargetDir(url: string, dir?: string): string {
     const base = this.reposBase;
-    const chosen = dir && dir.trim().length > 0 ? this.norm(dir) : `${base}/${this.sanitizeRepoName(url)}`;
-    return chosen;
+    return dir && dir.trim().length > 0 ? this.norm(dir) : `${base}/${this.sanitizeRepoName(url)}`;
   }
 
   private async ensureDir(dir: string): Promise<void> {
@@ -225,7 +346,28 @@ export class GitService {
   }
 
   private norm(p: string): string {
-    return p.replace(/\\/g, '/').replace(/\/+/g, '/').replace(/\/$/, '');
+    // Basic normalization: replace backslashes and remove duplicate slashes
+    let normalized = p.replace(/\\/g, '/').replace(/\/+/g, '/');
+    if (normalized.length > 1 && normalized.endsWith('/')) {
+        normalized = normalized.slice(0, -1);
+    }
+    
+    // To handle '..', we split by '/' and resolve
+    const parts = normalized.split('/');
+    const result: string[] = [];
+    for (const part of parts) {
+        if (part === '..') {
+            result.pop();
+        } else if (part !== '.' && part !== '') {
+            result.push(part);
+        }
+    }
+    // Reconstruct, preserving leading slash if it was there
+    let final = result.join('/');
+    if (normalized.startsWith('/') && !final.startsWith('/')) {
+        final = '/' + final;
+    }
+    return final || '.';
   }
 
   private async resolveRefSafe(dir: string, ref: string): Promise<string | null> {

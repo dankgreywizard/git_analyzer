@@ -1,9 +1,7 @@
 import { createServer } from "http";
 import express, {Express, Request, Response } from "express";
 import path from "path";
-import { GitEntry } from "../types/git";
-import { Message } from "../types/chat";
-import { ollamaResponse } from "../services/ollamaService";
+import { ollamaResponse, streamAIResponse } from "../services/ollamaService";
 import { getAIService } from "../services/aiService";
 import { configService } from "../services/configService";
 import cors from "cors";
@@ -11,7 +9,7 @@ import httpProxy from "http-proxy";
 import GitService from '../services/gitService';
 
 const port = process.env.PORT ? Number(process.env.PORT) : 5000;
-const webpackPort = process.env.WDS_PORT || '5100';
+const webpackPort = process.env.WDS_PORT || '5101';
 
 /**
  * Express application setup and API routes for the backend server.
@@ -33,11 +31,11 @@ const gitService = new GitService({ reposBase: 'repos', defaultDepth: 25 });
 // Server-side clone endpoint to avoid browser FS and CORS
 expressApp.post('/api/clone', async (req, res) => {
     const { url, dir } = req.body || {};
-    if (!url) {
-        return res.status(400).json({ error: 'Missing url' });
+    if (typeof url !== 'string' || !url.trim()) {
+        return res.status(400).json({ error: 'Missing or invalid url' });
     }
     try {
-        const result = await gitService.cloneRepo(url, typeof dir === 'string' ? dir : undefined);
+        const result = await gitService.cloneRepo(url.trim(), typeof dir === 'string' ? dir.trim() : undefined);
         res.json({ ok: true, dir: result.dir });
     } catch (e: any) {
         console.error('Clone failed', e);
@@ -48,13 +46,13 @@ expressApp.post('/api/clone', async (req, res) => {
 // Server-side open endpoint to verify and use an existing local repo
 expressApp.post('/api/open', async (req, res) => {
     const { url, dir } = req.body || {};
-    if (!url && !dir) {
+    if ((typeof url !== 'string' || !url.trim()) && (typeof dir !== 'string' || !dir.trim())) {
         return res.status(400).json({ error: 'Missing url or dir' });
     }
     try {
         const result = await gitService.openRepo(
-            typeof url === 'string' ? url : undefined,
-            typeof dir === 'string' ? dir : undefined
+            typeof url === 'string' ? url.trim() : undefined,
+            typeof dir === 'string' ? dir.trim() : undefined
         );
         res.json({ ok: true, dir: result.dir });
     } catch (e: any) {
@@ -66,11 +64,39 @@ expressApp.post('/api/open', async (req, res) => {
 // Endpoint to list available local repositories
 expressApp.get('/api/repos', async (req, res) => {
     try {
-        const baseDir = typeof req.query.baseDir === 'string' ? req.query.baseDir : undefined;
+        const baseDir = typeof req.query.baseDir === 'string' ? req.query.baseDir.trim() : undefined;
+        // Validation for baseDir if provided
+        if (baseDir && (baseDir.includes('..') || baseDir.startsWith('/'))) {
+             return res.status(400).json({ error: 'Invalid baseDir' });
+        }
         const repos = await gitService.listRepos(baseDir);
         res.json({ repos });
     } catch (e: any) {
         console.error('List repos failed', e);
+        res.status(500).json({ error: e?.message || String(e) });
+    }
+});
+
+// Endpoint to checkout one or more commits into individual branches.
+// Body: { dir: string, commits: string[] }
+expressApp.post('/api/checkout-commits', async (req, res) => {
+    try {
+        const { dir, commits } = req.body || {};
+        if (typeof dir !== 'string' || !dir.trim() || !Array.isArray(commits) || commits.length === 0) {
+            return res.status(400).json({ error: 'Missing or invalid dir or commits array' });
+        }
+        const results = [];
+        for (const oid of commits) {
+            if (typeof oid !== 'string' || !/^[0-9a-f]{7,40}$/i.test(oid)) {
+                return res.status(400).json({ error: `Invalid commit OID: ${oid}` });
+            }
+            const branchName = `branch-${oid.slice(0, 7)}`;
+            const result = await gitService.checkout(dir.trim(), oid, branchName);
+            results.push({ oid, branch: result.branch });
+        }
+        res.json({ results });
+    } catch (e: any) {
+        console.error('Checkout commits failed', e);
         res.status(500).json({ error: e?.message || String(e) });
     }
 });
@@ -108,11 +134,19 @@ expressApp.get('/api/log', async (req, res) => {
             // If client passed a URL in `dir`, map it; otherwise use as-is
             let isUrl = false;
             try { new URL(raw); isUrl = true; } catch {}
+            // Security: normalize and check if it's under repos if it's a local path
             dirToUse = isUrl ? `repos/${gitService.sanitizeRepoName(raw)}` : raw;
         }
 
         if (!dirToUse) {
             return res.status(400).json({ error: 'Missing url or dir query parameter' });
+        }
+
+        // Security check for log endpoint
+        try {
+            await gitService.openRepo(undefined, dirToUse);
+        } catch (e: any) {
+            return res.status(400).json({ error: `Invalid repository path: ${e.message}` });
         }
 
         // Enhanced: include changed files per commit
@@ -127,7 +161,7 @@ expressApp.get('/api/log', async (req, res) => {
 // List available AI models
 expressApp.get('/api/ollama/models', async (_req, res) => {
     try {
-        const aiService = getAIService();
+        const aiService = await getAIService();
         const models = await aiService.listModels();
         res.json({ models });
     } catch (e: any) {
@@ -141,72 +175,110 @@ expressApp.post('/api/analyze-commits', async (req: Request, res: Response) => {
     try {
         const { commits, model, maxCommits, instructions } = req.body || {};
         if (!Array.isArray(commits) || commits.length === 0) {
-            return res.status(400).json({ error: 'Missing commits array' });
+            return res.status(400).json({ error: 'Missing or invalid commits array' });
         }
-        const config = configService.getConfig();
+        
+        // Basic validation for commit objects
+        for (const c of commits) {
+            const oid = c.oid ?? c.commit?.oid;
+            if (!oid || typeof oid !== 'string' || !/^[0-9a-f]{7,40}$/i.test(oid)) {
+                return res.status(400).json({ error: `Invalid commit OID in analysis list: ${oid}` });
+            }
+        }
+        const config = await configService.getConfig();
         const selectedModel = typeof model === 'string' && model.trim() ? model.trim() : (config.defaultModel || 'codellama:latest');
+        
+        // Compact commit entries to avoid huge payloads.
+        // We ensure all fields are stringified or appropriately typed for the LLM.
         const cap = typeof maxCommits === 'number' && Number.isFinite(maxCommits) ? Math.min(Math.max(1, Math.floor(maxCommits)), 1000) : 100;
+        const compact = (commits as any[]).slice(0, cap).map((c, i) => {
+            const oid = String(c.oid || (c.commit && c.commit.oid) || '').slice(0, 12);
+            const author = c.author?.name || c.commit?.author?.name || 'Unknown';
+            const email = c.author?.email || c.commit?.author?.email || undefined;
+            const timestamp = c.author?.timestamp || c.commit?.author?.timestamp;
+            const date = timestamp ? new Date(timestamp * 1000).toISOString() : undefined;
+            const rawMessage = String(c.message || (c.commit && c.commit.message) || '');
+            const subject = rawMessage.split('\n')[0];
+            const message = rawMessage.slice(0, 4000);
+            
+            const files = Array.isArray(c.files) ? c.files.slice(0, 500).map((f: any) => ({
+                path: String(f.path || ''),
+                status: f.status,
+                diff: f.diff ? String(f.diff).slice(0, 8000) : undefined
+            })) : [];
 
-        // Compact commit entries to avoid huge payloads
-        const compact = (commits as any[]).slice(0, cap).map((c, i) => ({
-            index: i,
-            oid: String((c.oid ?? c.commit?.oid ?? '')).slice(0, 12),
-            author: c.author?.name || c.commit?.author?.name || 'Unknown',
-            email: c.author?.email || c.commit?.author?.email || undefined,
-            date: c.author?.timestamp ? new Date(c.author.timestamp * 1000).toISOString()
-                : (c.commit?.author?.timestamp ? new Date(c.commit.author.timestamp * 1000).toISOString() : undefined),
-            subject: String(c.message || c.commit?.message || '').split('\n')[0],
-            message: String(c.message || c.commit?.message || '' ).slice(0, 4000),
-            files: Array.isArray(c.files) ? c.files.slice(0, 200).map((f: any) => ({ path: String(f.path || ''), status: f.status })) : [],
-        }));
+            return { index: i, oid, author, email, date, subject, message, files };
+        });
 
-        const systemPrompt = `You are a senior engineer assisting with Git history review. Analyze the following commits and provide:
-1) A concise summary of key changes
-2) Grouping by area/module if apparent
-3) Potential risks/breaking changes
-4) Suggested tests and verification steps
-5) Notable contributors and hotspots.
-Keep it structured with short sections and bullet points.`;
+        const systemPrompt = config.systemPrompt || `You are an expert code reviewer. Analyze the following commits and provide a comprehensive review:
+1) Executive Summary: A concise overview of the changes across ALL selected commits.
+2) Detailed File Analysis: For EACH and EVERY commit provided, explain the purpose of the changes in the individual files based on the provided diffs. Do not skip any commits.
+3) Architectural Impact: How these changes affect the overall system, potential grouping by area/module.
+4) Risk Assessment: Identify potential bugs, breaking changes, or security concerns based on the actual code changes.
+5) Testing Strategy: Specific, actionable suggestions for verifying these changes.
+
+Your tone should be professional and constructive. Focus on the "why" and "how" of the code changes, not just "what" files changed. Use the provided diffs to give specific examples in your explanation. Ensure your review covers all commits listed in the user prompt.`;
 
         const userPrompt = {
-            task: 'Analyze the following commits',
-            note: instructions || 'Focus on changes, risks, and tests. Use clear bullet points.',
+            task: 'Review the following commits and explain the differences and impact of the changes.',
+            note: typeof instructions === 'string' ? instructions.trim().slice(0, 2000) : 'Provide a detailed code review focusing on the differences between commits and individual file changes. Mention that these were checked out into individual branches for review.',
             commits: compact,
         };
 
         res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-        const aiService = getAIService();
-        const stream = await aiService.chat({
-            model: selectedModel,
-            stream: true,
-            messages: [
-                { role: 'system', content: systemPrompt },
-                { role: 'user', content: JSON.stringify(userPrompt) },
-            ],
-        });
-
-        for await (const part of stream) {
-            const chunk = (part && (part as any).message && (part as any).message.content) ?? (part as any).response ?? '';
-            if (chunk) res.write(chunk);
+        const aiService = await getAIService();
+        let stream;
+        
+        try {
+            stream = await aiService.chat({
+                model: selectedModel,
+                stream: true,
+                messages: [
+                    { role: 'system', content: systemPrompt },
+                    { role: 'user', content: JSON.stringify(userPrompt) },
+                ],
+            });
+        } catch (aiError: any) {
+            console.error('AI Service failed to start stream', aiError);
+            if (!res.headersSent) {
+                res.status(502).end(JSON.stringify({ error: `AI Provider error: ${aiError.message || String(aiError)}` }));
+            }
+            return;
         }
-        res.end();
+
+        await streamAIResponse(req, res, stream);
     } catch (e: any) {
         console.error('Analyze commits failed', e);
-        if (!res.headersSent) res.setHeader('Content-Type', 'application/json');
-        res.status(500).json({ error: e?.message || String(e) });
+        if (res.headersSent) {
+            res.write(`\n[Analysis failed: ${e?.message || String(e)}]\n`);
+            res.end();
+        } else {
+            res.status(500).json({ error: e?.message || String(e) });
+        }
     }
 });
 // Get current AI configuration
-expressApp.get('/api/config', (_req, res) => {
-    res.json(configService.getConfig());
+expressApp.get('/api/config', async (_req, res) => {
+    res.json(await configService.getConfig());
 });
 
 // Update AI configuration
-expressApp.post('/api/config', (req, res) => {
+expressApp.post('/api/config', async (req, res) => {
     try {
-        configService.updateConfig(req.body);
+        const { apiKey, baseUrl, defaultModel, availableModels, systemPrompt } = req.body || {};
+        
+        // Basic type validation for settings
+        const sanitized: any = {};
+        if (apiKey !== undefined) sanitized.apiKey = typeof apiKey === 'string' ? apiKey.trim() : '';
+        if (baseUrl !== undefined) sanitized.baseUrl = typeof baseUrl === 'string' ? baseUrl.trim() : '';
+        if (defaultModel !== undefined) sanitized.defaultModel = typeof defaultModel === 'string' ? defaultModel.trim() : '';
+        if (availableModels !== undefined) sanitized.availableModels = typeof availableModels === 'string' ? availableModels.trim() : '';
+        if (systemPrompt !== undefined) sanitized.systemPrompt = typeof systemPrompt === 'string' ? systemPrompt.trim() : '';
+
+        await configService.updateConfig(sanitized);
         res.json({ ok: true });
     } catch (e: any) {
+        console.error('Update config failed', e);
         res.status(500).json({ error: e?.message || String(e) });
     }
 });
