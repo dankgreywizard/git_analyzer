@@ -27,7 +27,7 @@ const ChatView: React.FC<ChatViewProps> = ({
   return (
     <>
       {/* Chat container */}
-      <div ref={chatContainerRef} className="flex-1 overflow-y-auto px-6 py-6 space-y-4">
+      <div ref={chatContainerRef} className="flex-1 overflow-y-auto px-6 py-6 space-y-4" data-testid="chat-container">
         {messages.length === 0 ? (
           <div className="text-center text-gray-500 py-12">
             <svg className="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -37,7 +37,14 @@ const ChatView: React.FC<ChatViewProps> = ({
             <p className="text-sm mt-1">Ask me anything and I'll help you out!</p>
           </div>
         ) : (
-          messages.map((m, idx) => <ChatMessage key={idx} role={m.role} content={m.content} />)
+          messages.map((m, idx) => (
+            <ChatMessage 
+              key={idx} 
+              role={m.role} 
+              content={m.content} 
+              isError={m.isError} 
+            />
+          ))
         )}
       </div>
 

@@ -1,4 +1,4 @@
-import { renderHook, act, waitFor } from '@testing-library/react';
+import { renderHook, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useChat } from '../useChat';
 
@@ -65,6 +65,10 @@ describe('useChat', () => {
       await result.current.sendMessage('hi', undefined, onUpdateStatus);
     });
 
+    expect(result.current.messages).toEqual([
+      { role: 'user', content: 'hi' },
+      { role: 'assistant', content: 'Error: Bad Request', isError: true },
+    ]);
     expect(onUpdateStatus).toHaveBeenCalledWith('Error', 'red');
     expect(result.current.sending).toBe(false);
   });

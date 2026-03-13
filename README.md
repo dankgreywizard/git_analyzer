@@ -4,13 +4,15 @@ A modern web application that combines local AI capabilities with Git repository
 
 ## 🚀 Features
 
-- **Git Operations**: Clone public repositories and view commit history directly from the web interface.
-- **AI-Powered Analysis**: Support for both local LLMs (via [Ollama](https://ollama.com/)) and external AI providers (OpenAI, Anthropic, etc.).
-- **Flexible LLM Integration**: Analyze commits for risks, summaries, and testing suggestions using your preferred AI model (Ollama or external providers).
-- **Settings Management**: Easily configure AI providers and models through the built-in Settings interface.
-- **Streaming Responses**: Real-time AI response streaming for a better user experience.
-- **Modern UI**: Built with React, featuring Tailwind CSS v4 and a compact dropdown navigation menu. Defaults to the **Git** view for immediate repository analysis.
-- **Git Console**: Interactive console for monitoring Git operations.
+- **Git Operations**: Clone public repositories, view commit history, and **checkout multiple commits simultaneously** into their own branches.
+- **AI-Powered Code Review**: Support for both local LLMs (via [Ollama](https://ollama.com/)) and external AI providers (OpenAI, Anthropic, etc.) acting as an **expert code reviewer**.
+- **Detailed Diff Analysis**: Automatically generates and analyzes line-by-line diffs for each file in selected commits, explaining "how" and "why" functionality changed.
+- **Customizable AI Persona**: Define your own system prompt/persona to guide the AI's analysis style and focus.
+- **Persistent Settings**: Uses an in-memory database (**LokiJS**) to persist AI configurations and settings across application restarts.
+- **Real-time Feedback**: Visual "AI is thinking..." indicators and detailed in-chat error reporting for a smooth experience.
+- **Modern UI**: Built with React, featuring a modular architecture with custom hooks (`useGit`, `useChat`), Tailwind CSS v4, and a compact dropdown navigation menu.
+- **Security-First**: Robust input validation and path traversal protection for all Git and AI operations.
+- **Git Console**: Interactive console for monitoring Git operations in real-time.
 
 ## 🛠 Tech Stack
 
@@ -21,12 +23,15 @@ A modern web application that combines local AI capabilities with Git repository
 ### Backend
 - **Node.js & Express**: Core server framework.
 - **TypeScript**: Typed development for the backend.
+- **LokiJS**: In-memory database with file-based persistence for settings and configuration.
 - **LLM Integration**: Support for local models (Ollama SDK) and extensible architecture for external APIs.
 - **Isomorphic-Git**: Perform Git operations in Node.js.
+- **Security**: Built-in path normalization and boundary checks to prevent path traversal.
 - **Http-Proxy**: Proxying requests between development servers.
 
 ### Frontend
-- **React**: Component-based UI library.
+- **React**: Component-based UI library using modern patterns (Hooks, Layouts).
+- **Custom Hooks**: Encapsulated logic in `useGit`, `useChat`, `useModels`, and `useChatHistory`.
 - **Tailwind CSS v4**: Utility-first styling with the latest features.
 - **Animations**: AOS (Animate On Scroll), Animate.css, and Framer Motion.
 - **Vite**: Ultra-fast frontend tooling and development server.
@@ -147,21 +152,24 @@ npm start
 - **Start Frontend**: `npm run client`
 - **Build All**: `npm run build`
 - **Build CSS**: `npm run build:css`
-- **Run Tests**: `npm test` (149 tests currently passing across 21 files)
+- **Run Tests**: `npm test` (173 tests currently passing across 24 files)
 
 ### API Endpoints (Core)
-- **POST `/api/analyze-commits`**: Send commits for AI analysis.
-- **GET `/api/config`**: Retrieve current AI configuration.
-- **POST `/api/config`**: Update AI configuration.
+- **POST `/api/clone`**: Clone a Git repository to the server.
+- **POST `/api/checkout-commits`**: Checkout multiple commits into separate branches.
+- **POST `/api/analyze-commits`**: Send commits for AI analysis with detailed diffs.
+- **GET `/api/config`**: Retrieve current AI configuration and system prompt.
+- **POST `/api/config`**: Update AI configuration and persistence.
 - **GET `/api/ollama/models`**: List available models from the configured AI service.
 
 ## 📂 Project Structure
 
 - `src/`: Core source code.
   - `client/`: React frontend (Vite entry point: `index.tsx`).
-    - `components/`: Modularized UI components including `ChatView`, `GitView`, and `SettingsView`.
-  - `server/`: Express backend entry point.
-  - `services/`: Shared business logic for Git, Ollama, and AI Service orchestration.
+    - `components/`: Modularized UI components including `ChatView`, `GitView`, `SettingsView`, and `Layout`.
+    - `hooks/`: Custom React hooks for Git (`useGit`), Chat (`useChat`), and state management.
+  - `server/`: Express backend entry point and API route definitions.
+  - `services/`: Shared business logic for Git, Ollama, AI Service orchestration, and Config management (LokiJS).
   - `types/`: Shared TypeScript interfaces between client and server.
 - `static/`: Static assets and global CSS.
 - `index.html`: Vite entry point.

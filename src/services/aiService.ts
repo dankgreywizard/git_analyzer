@@ -84,7 +84,7 @@ export class ExternalAIService implements AIService {
     }
 
     async listModels(): Promise<string[]> {
-        const config = configService.getConfig();
+        const config = await configService.getConfig();
         return config.availableModels ? config.availableModels.split(',').map(m => m.trim()) : ['gpt-3.5-turbo', 'gpt-4', 'claude-3-opus-20240229'];
     }
 
@@ -122,8 +122,8 @@ export class ExternalAIService implements AIService {
     }
 }
 
-export function getAIService(): AIService {
-    const config = configService.getConfig();
+export async function getAIService(): Promise<AIService> {
+    const config = await configService.getConfig();
     const apiKey = config.apiKey;
     const baseUrl = config.baseUrl;
     

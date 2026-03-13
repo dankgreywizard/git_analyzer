@@ -20,7 +20,8 @@ describe('SettingsView', () => {
             apiKey: 'test-api-key',
             baseUrl: 'https://test.url',
             defaultModel: 'gpt-4',
-            availableModels: 'gpt-4,gpt-3.5-turbo'
+            availableModels: 'gpt-4,gpt-3.5-turbo',
+            systemPrompt: 'test-system-prompt'
         };
 
         (vi.mocked(fetch) as any).mockResolvedValueOnce({
@@ -40,6 +41,7 @@ describe('SettingsView', () => {
         expect(screen.getByLabelText(/API Base URL/i)).toHaveValue('https://test.url');
         expect(screen.getByLabelText(/Default AI Model/i)).toHaveValue('gpt-4');
         expect(screen.getByLabelText(/Available Models/i)).toHaveValue('gpt-4,gpt-3.5-turbo');
+        expect(screen.getByLabelText(/System Prompt/i)).toHaveValue('test-system-prompt');
     });
 
     it('should update state when inputs change', async () => {
@@ -74,6 +76,9 @@ describe('SettingsView', () => {
         const apiKeyInput = screen.getByLabelText(/AI API Key/i);
         fireEvent.change(apiKeyInput, { target: { value: 'saved-key' } });
 
+        const systemPromptInput = screen.getByLabelText(/System Prompt/i);
+        fireEvent.change(systemPromptInput, { target: { value: 'saved-prompt' } });
+
         (vi.mocked(fetch) as any).mockResolvedValueOnce({
             ok: true,
         });
@@ -87,7 +92,7 @@ describe('SettingsView', () => {
 
         expect(fetch).toHaveBeenCalledWith('/api/config', expect.objectContaining({
             method: 'POST',
-            body: JSON.stringify({ apiKey: 'saved-key' }),
+            body: JSON.stringify({ apiKey: 'saved-key', systemPrompt: 'saved-prompt' }),
         }));
     });
 

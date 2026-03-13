@@ -6,6 +6,7 @@ interface AIConfig {
     baseUrl?: string;
     defaultModel?: string;
     availableModels?: string;
+    systemPrompt?: string;
 }
 
 export default function SettingsView() {
@@ -47,7 +48,8 @@ export default function SettingsView() {
             if (response.ok) {
                 setStatus({ message: 'Configuration saved successfully', type: 'success' });
             } else {
-                throw new Error('Failed to save');
+                console.error('Failed to save config: Server returned', response.status);
+                setStatus({ message: 'Failed to save configuration', type: 'error' });
             }
         } catch (e) {
             console.error('Failed to save config', e);
@@ -132,6 +134,23 @@ export default function SettingsView() {
                     />
                     <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                         Used to populate the model selector when an API Key is provided.
+                    </p>
+                </div>
+
+                <div>
+                    <label htmlFor="systemPrompt" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        AI Persona / System Prompt
+                    </label>
+                    <textarea
+                        id="systemPrompt"
+                        className="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white font-mono text-sm"
+                        rows={8}
+                        placeholder="Define how the AI should behave and what it should focus on..."
+                        value={config.systemPrompt || ''}
+                        onChange={(e) => setConfig({ ...config, systemPrompt: e.target.value })}
+                    />
+                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                        This persona defines the AI's role and analysis instructions for code reviews.
                     </p>
                 </div>
 

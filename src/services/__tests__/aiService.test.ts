@@ -1,15 +1,15 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { getAIService, OllamaAIService, ExternalAIService } from '../aiService';
-import ollama from 'ollama';
 import { configService } from '../configService';
 
-vi.mock('ollama', () => {
-    class MockOllama {
-        chat = vi.fn();
-        list = vi.fn();
-    }
-    return { Ollama: MockOllama };
-});
+vi.mock('ollama', () => ({
+    Ollama: vi.fn().mockImplementation(function() {
+        return {
+            chat: vi.fn(),
+            list: vi.fn(),
+        };
+    }),
+}));
 
 vi.mock('../configService', () => ({
     configService: {
@@ -22,20 +22,20 @@ describe('aiService', () => {
         vi.clearAllMocks();
     });
 
-    it('should return OllamaAIService by default (no apiKey in config)', () => {
-        vi.mocked(configService.getConfig).mockReturnValue({});
-        const service = getAIService();
+    it('should return OllamaAIService by default (no apiKey in config)', async () => {
+        vi.mocked(configService.getConfig).mockResolvedValue({});
+        const service = await getAIService();
         expect(service).toBeInstanceOf(OllamaAIService);
     });
 
-    it('should return ExternalAIService if apiKey is in config', () => {
-        vi.mocked(configService.getConfig).mockReturnValue({ apiKey: 'test-key' });
-        const service = getAIService();
+    it('should return ExternalAIService if apiKey is in config', async () => {
+        vi.mocked(configService.getConfig).mockResolvedValue({ apiKey: 'test-key' });
+        const service = await getAIService();
         expect(service).toBeInstanceOf(ExternalAIService);
     });
 
     it('ExternalAIService should use baseUrl from config', async () => {
-        vi.mocked(configService.getConfig).mockReturnValue({ 
+        vi.mocked(configService.getConfig).mockResolvedValue({
             apiKey: 'test-key',
             baseUrl: 'https://custom.api/v1'
         });
@@ -45,14 +45,14 @@ describe('aiService', () => {
             json: async () => ({ choices: [{ message: { content: 'hello' } }] })
         } as any);
 
-        const service = getAIService();
+        const service = await getAIService();
         await service.chat({ model: 'test-model', messages: [{ role: 'user', content: 'hi' }] });
 
         expect(fetchSpy).toHaveBeenCalledWith('https://custom.api/v1/chat/completions', expect.any(Object));
     });
 
     it('ExternalAIService.listModels should use availableModels from config', async () => {
-        vi.mocked(configService.getConfig).mockReturnValue({ 
+        vi.mocked(configService.getConfig).mockResolvedValue({
             apiKey: 'test-key',
             availableModels: 'model-a, model-b'
         });
@@ -64,11 +64,25 @@ describe('aiService', () => {
     });
 
     it('ExternalAIService.listModels should return defaults if availableModels missing', async () => {
-        vi.mocked(configService.getConfig).mockReturnValue({ apiKey: 'test-key' });
+        vi.mocked(configService.getConfig).mockResolvedValue({ apiKey: 'test-key' });
 
         const service = new ExternalAIService('test-key');
         const models = await service.listModels();
 
         expect(models).toContain('gpt-4');
+    });
+
+    it('ExternalAIService should handle API errors gracefully', async () => {
+        vi.mocked(configService.getConfig).mockResolvedValue({ apiKey: 'test-key' });
+
+        vi.spyOn(global, 'fetch').mockResolvedValue({
+            ok: false,
+            statusText: 'Unauthorized',
+            json: async () => ({ error: 'Invalid key' })
+        } as any);
+
+        const service = await getAIService();
+        await expect(service.chat({ model: 'test-model', messages: [] }))
+            .rejects.toThrow(/External AI API error: Unauthorized/);
     });
 });
