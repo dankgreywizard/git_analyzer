@@ -47,7 +47,7 @@ describe('ConfigService', () => {
 
     it('should update and save config via LokiJS', async () => {
         configService = new ConfigService(':memory:');
-        
+
         const newConfig = {
             apiKey: 'new-key',
             baseUrl: 'https://new.api',
@@ -60,7 +60,7 @@ describe('ConfigService', () => {
         expect(config.apiKey).toBe('new-key');
         expect(config.baseUrl).toBe('https://new.api');
         expect(config.systemPrompt).toBe('new-prompt');
-        
+
         // Environment variables should also be updated for backward compatibility
         expect(process.env.AI_API_KEY).toBe('new-key');
         expect(process.env.AI_BASE_URL).toBe('https://new.api');
@@ -70,9 +70,9 @@ describe('ConfigService', () => {
     it('should handle empty strings for apiKey by deleting the environment variable', async () => {
         process.env.AI_API_KEY = 'old-key';
         configService = new ConfigService(':memory:');
-        
+
         await configService.updateConfig({ apiKey: '' });
-        
+
         expect(process.env.AI_API_KEY).toBeUndefined();
     });
 });

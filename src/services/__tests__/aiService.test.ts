@@ -35,7 +35,7 @@ describe('aiService', () => {
     });
 
     it('ExternalAIService should use baseUrl from config', async () => {
-        vi.mocked(configService.getConfig).mockResolvedValue({ 
+        vi.mocked(configService.getConfig).mockResolvedValue({
             apiKey: 'test-key',
             baseUrl: 'https://custom.api/v1'
         });
@@ -52,7 +52,7 @@ describe('aiService', () => {
     });
 
     it('ExternalAIService.listModels should use availableModels from config', async () => {
-        vi.mocked(configService.getConfig).mockResolvedValue({ 
+        vi.mocked(configService.getConfig).mockResolvedValue({
             apiKey: 'test-key',
             availableModels: 'model-a, model-b'
         });
@@ -74,7 +74,7 @@ describe('aiService', () => {
 
     it('ExternalAIService should handle API errors gracefully', async () => {
         vi.mocked(configService.getConfig).mockResolvedValue({ apiKey: 'test-key' });
-        
+
         vi.spyOn(global, 'fetch').mockResolvedValue({
             ok: false,
             statusText: 'Unauthorized',
