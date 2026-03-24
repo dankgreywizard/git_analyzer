@@ -15,7 +15,8 @@ A modern web application that combines local AI capabilities with Git repository
 - **Persistent Settings**: Uses an in-memory database (**LokiJS**) to persist AI configurations and settings across application restarts.
 - **Real-time Feedback**: Visual "AI is thinking..." indicators, detailed in-chat error reporting, and **specific error feedback for Git operations** (Clone, Open, Log) to help diagnose connectivity or repository issues.
 - **Modern UI**: Built with React, featuring a modular architecture with custom hooks (`useGit`, `useChat`), Tailwind CSS v4, and a compact dropdown navigation menu.
-- **Security-First**: Robust input validation and path traversal protection for all Git and AI operations.
+- **Security-First**: Robust input validation and path traversal protection for all Git and AI operations. Centralized path sanitization in `GitService` ensures all file access remains within the repository boundaries, sensitive information (like `apiKey`) is masked in the UI, and strict validation (like `ref` validation and `timeout` clamping) is enforced at the API level.
+- **Improved Chat Experience**: Automatic scrolling to the bottom of the chat window for real-time AI responses, fixed input bar for constant access, and **dedicated scrollbars** for the chat container and individual long message results.
 - **Git Console**: Interactive console for monitoring Git operations in real-time.
 
 ## 🛠 Tech Stack
@@ -30,7 +31,7 @@ A modern web application that combines local AI capabilities with Git repository
 - **LokiJS**: In-memory database with file-based persistence for settings and configuration.
 - **LLM Integration**: Support for local models (Ollama SDK) and extensible architecture for external APIs.
 - **Isomorphic-Git**: Perform Git operations in Node.js.
-- **Security**: Built-in path normalization and boundary checks to prevent path traversal.
+- **Security**: Built-in path normalization, leading slash stripping, and boundary checks to prevent path traversal across all repository-related operations. Includes strict `ref` validation and clamped `timeout` parameters to ensure stability and security.
 - **Http-Proxy**: Proxying requests between development servers.
 
 ### Frontend
@@ -158,7 +159,7 @@ npm start
 - **Start Frontend**: `npm run client`
 - **Build All**: `npm run build`
 - **Build CSS**: `npm run build:css`
-- **Run Tests**: `npm test` (194 tests currently passing across 24 files)
+- **Run Tests**: `npm test` (217 tests currently passing across 24 files)
 
 ### API Endpoints (Core)
 - **POST `/api/clone`**: Clone a Git repository to the server.

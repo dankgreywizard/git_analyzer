@@ -34,8 +34,13 @@ expressApp.post('/api/clone', async (req, res) => {
     if (typeof url !== 'string' || !url.trim()) {
         return res.status(400).json({ error: 'Missing or invalid url' });
     }
+    const trimmedUrl = url.trim();
+    const sanitizedDir = typeof dir === 'string' && dir.trim() ? gitService.sanitizePath(dir.trim()) : undefined;
+    if (sanitizedDir && !gitService.isPathUnderRepos(sanitizedDir)) {
+        return res.status(400).json({ error: 'Invalid repository directory' });
+    }
     try {
-        const result = await gitService.cloneRepo(url.trim(), typeof dir === 'string' ? dir.trim() : undefined);
+        const result = await gitService.cloneRepo(trimmedUrl, sanitizedDir);
         res.json({ ok: true, dir: result.dir });
     } catch (e: any) {
         console.error('Clone failed', e);
@@ -46,14 +51,17 @@ expressApp.post('/api/clone', async (req, res) => {
 // Server-side open endpoint to verify and use an existing local repo
 expressApp.post('/api/open', async (req, res) => {
     const { url, dir } = req.body || {};
-    if ((typeof url !== 'string' || !url.trim()) && (typeof dir !== 'string' || !dir.trim())) {
+    const trimmedUrl = typeof url === 'string' ? url.trim() : undefined;
+    const trimmedDir = typeof dir === 'string' ? dir.trim() : undefined;
+    if (!trimmedUrl && !trimmedDir) {
         return res.status(400).json({ error: 'Missing url or dir' });
     }
+    const sanitizedDir = trimmedDir ? gitService.sanitizePath(trimmedDir) : undefined;
+    if (sanitizedDir && !gitService.isPathUnderRepos(sanitizedDir)) {
+        return res.status(400).json({ error: 'Invalid repository directory' });
+    }
     try {
-        const result = await gitService.openRepo(
-            typeof url === 'string' ? url.trim() : undefined,
-            typeof dir === 'string' ? dir.trim() : undefined
-        );
+        const result = await gitService.openRepo(trimmedUrl, sanitizedDir);
         res.json({ ok: true, dir: result.dir });
     } catch (e: any) {
         console.error('Open failed', e);
@@ -66,10 +74,13 @@ expressApp.get('/api/repos', async (req, res) => {
     try {
         const baseDir = typeof req.query.baseDir === 'string' ? req.query.baseDir.trim() : undefined;
         // Validation for baseDir if provided
-        if (baseDir && (baseDir.includes('..') || baseDir.startsWith('/'))) {
-             return res.status(400).json({ error: 'Invalid baseDir' });
+        if (baseDir && baseDir !== '') {
+            const sanitizedBase = gitService.sanitizePath(baseDir);
+            if (!gitService.isPathUnderRepos(sanitizedBase)) {
+                return res.status(400).json({ error: 'Invalid baseDir' });
+            }
         }
-        const repos = await gitService.listRepos(baseDir);
+        const repos = await gitService.listRepos(baseDir || undefined);
         res.json({ repos });
     } catch (e: any) {
         console.error('List repos failed', e);
@@ -85,13 +96,17 @@ expressApp.post('/api/checkout-commits', async (req, res) => {
         if (typeof dir !== 'string' || !dir.trim() || !Array.isArray(commits) || commits.length === 0) {
             return res.status(400).json({ error: 'Missing or invalid dir or commits array' });
         }
+        const sanitizedDir = gitService.sanitizePath(dir.trim());
+        if (!gitService.isPathUnderRepos(sanitizedDir)) {
+            return res.status(400).json({ error: 'Invalid repository directory' });
+        }
         const results = [];
         for (const oid of commits) {
             if (typeof oid !== 'string' || !/^[0-9a-f]{7,40}$/i.test(oid)) {
                 return res.status(400).json({ error: `Invalid commit OID: ${oid}` });
             }
             const branchName = `branch-${oid.slice(0, 7)}`;
-            const result = await gitService.checkout(dir.trim(), oid, branchName);
+            const result = await gitService.checkout(sanitizedDir, oid, branchName);
             results.push({ oid, branch: result.branch });
         }
         res.json({ results });
@@ -109,7 +124,11 @@ expressApp.post('/api/reset-repo', async (req, res) => {
         if (typeof dir !== 'string' || !dir.trim()) {
             return res.status(400).json({ error: 'Missing or invalid dir' });
         }
-        const result = await gitService.reset(dir.trim(), { deleteTempBranches: !!deleteTempBranches });
+        const sanitizedDir = gitService.sanitizePath(dir.trim());
+        if (!gitService.isPathUnderRepos(sanitizedDir)) {
+            return res.status(400).json({ error: 'Invalid repository directory' });
+        }
+        const result = await gitService.reset(sanitizedDir, { deleteTempBranches: !!deleteTempBranches });
         res.json(result);
     } catch (e: any) {
         console.error('Reset repository failed', e);
@@ -136,7 +155,11 @@ expressApp.get('/api/log', async (req, res) => {
                 if (depth > 1000) depth = 1000;
             }
         }
-        const ref = typeof req.query.ref === 'string' ? req.query.ref : undefined;
+        const ref = typeof req.query.ref === 'string' ? req.query.ref.trim() : undefined;
+        // Basic ref sanitization (no spaces, no control chars)
+        if (ref && (/\s/.test(ref) || /[\x00-\x1F\x7F]/.test(ref))) {
+            return res.status(400).json({ error: 'Invalid ref' });
+        }
 
         const urlParam = typeof req.query.url === 'string' ? req.query.url : undefined;
         const dirParam = typeof req.query.dir === 'string' ? req.query.dir : '';
@@ -156,6 +179,11 @@ expressApp.get('/api/log', async (req, res) => {
 
         if (!dirToUse) {
             return res.status(400).json({ error: 'Missing url or dir query parameter' });
+        }
+
+        dirToUse = gitService.sanitizePath(dirToUse);
+        if (!gitService.isPathUnderRepos(dirToUse)) {
+            return res.status(400).json({ error: 'Invalid repository path' });
         }
 
         // Security check for log endpoint
@@ -190,7 +218,7 @@ expressApp.get('/api/ollama/models', async (_req, res) => {
 expressApp.post('/api/analyze-commits', async (req: Request, res: Response) => {
     console.log("Starting commit analysis request...");
     try {
-        const { commits, model, maxCommits, instructions } = req.body || {};
+        const { commits, model, maxCommits, instructions, dir } = req.body || {};
         console.log(`Analysis request: commits count=${Array.isArray(commits) ? commits.length : 'invalid'}, model=${model}`);
         if (!Array.isArray(commits) || commits.length === 0) {
             console.error("Invalid commits array in analysis request");
@@ -199,11 +227,22 @@ expressApp.post('/api/analyze-commits', async (req: Request, res: Response) => {
         
         // Basic validation for commit objects
         for (const c of commits) {
+            if (!c || typeof c !== 'object') {
+                return res.status(400).json({ error: 'Invalid commit object in list' });
+            }
             const oid = c.oid ?? c.commit?.oid;
             if (!oid || typeof oid !== 'string' || !/^[0-9a-f]{7,40}$/i.test(oid)) {
                 return res.status(400).json({ error: `Invalid commit OID in analysis list: ${oid}` });
             }
         }
+        
+        if (typeof dir === 'string' && dir.trim()) {
+            const normDir = gitService.sanitizePath(dir.trim());
+            if (!gitService.isPathUnderRepos(normDir)) {
+                return res.status(400).json({ error: 'Invalid repository directory' });
+            }
+        }
+
         const config = await configService.getConfig();
         const selectedModel = typeof model === 'string' && model.trim() ? model.trim() : (config.defaultModel || 'codellama:latest');
         
@@ -281,7 +320,12 @@ Your tone should be professional and constructive. Use the provided diffs to giv
 });
 // Get current AI configuration
 expressApp.get('/api/config', async (_req, res) => {
-    res.json(await configService.getConfig());
+    const config = await configService.getConfig();
+    // Mask API key for security
+    if (config.apiKey) {
+        config.apiKey = '********';
+    }
+    res.json(config);
 });
 
 // Update AI configuration
@@ -291,13 +335,21 @@ expressApp.post('/api/config', async (req, res) => {
         
         // Basic type validation for settings
         const sanitized: any = {};
-        if (apiKey !== undefined) sanitized.apiKey = typeof apiKey === 'string' ? apiKey.trim() : '';
+        if (apiKey !== undefined) {
+            // Only update if it's not the masked value
+            if (apiKey !== '********') {
+                sanitized.apiKey = typeof apiKey === 'string' ? apiKey.trim() : '';
+            }
+        }
         if (baseUrl !== undefined) sanitized.baseUrl = typeof baseUrl === 'string' ? baseUrl.trim() : '';
         if (defaultModel !== undefined) sanitized.defaultModel = typeof defaultModel === 'string' ? defaultModel.trim() : '';
         if (availableModels !== undefined) sanitized.availableModels = typeof availableModels === 'string' ? availableModels.trim() : '';
         if (systemPrompt !== undefined) sanitized.systemPrompt = typeof systemPrompt === 'string' ? systemPrompt.trim() : '';
         if (persona !== undefined) sanitized.persona = typeof persona === 'string' ? persona.trim() : '';
-        if (timeout !== undefined) sanitized.timeout = typeof timeout === 'number' ? timeout : parseInt(String(timeout)) || 30000;
+        if (timeout !== undefined) {
+            const val = typeof timeout === 'number' ? timeout : parseInt(String(timeout));
+            sanitized.timeout = !isNaN(val) ? Math.min(Math.max(1000, val), 300000) : 30000;
+        }
 
         await configService.updateConfig(sanitized);
         res.json({ ok: true });

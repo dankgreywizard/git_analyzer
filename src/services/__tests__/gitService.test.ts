@@ -32,6 +32,34 @@ describe('GitService', () => {
     await expect(gitService.cloneRepo('')).rejects.toThrow('Missing url');
   });
 
+  describe('sanitizePath', () => {
+    it('should normalize paths correctly', () => {
+      expect(gitService.sanitizePath('foo/bar/../baz')).toBe('foo/baz');
+      expect(gitService.sanitizePath('foo//bar')).toBe('foo/bar');
+      expect(gitService.sanitizePath('./foo')).toBe('foo');
+    });
+
+    it('should handle absolute paths (as they are normalized and leading slash removed)', () => {
+      expect(gitService.sanitizePath('/abs/path')).toBe('abs/path');
+    });
+  });
+
+  describe('isPathUnderRepos', () => {
+    it('should return true for paths under repos base', () => {
+      // With reposBase: 'test-repos'
+      expect(gitService.isPathUnderRepos('test-repos/my-repo')).toBe(true);
+    });
+
+    it('should return false for paths outside repos base', () => {
+      expect(gitService.isPathUnderRepos('../outside')).toBe(false);
+      expect(gitService.isPathUnderRepos('/etc/passwd')).toBe(false);
+    });
+
+    it('should return false for paths that try to escape via .. even if they start with repos', () => {
+      expect(gitService.isPathUnderRepos('test-repos/../../etc/passwd')).toBe(false);
+    });
+  });
+
   it('should call git.clone with correct parameters', async () => {
     const url = 'https://github.com/user/repo.git';
     await gitService.cloneRepo(url);
@@ -55,14 +83,14 @@ describe('GitService', () => {
     expect(repos).toEqual(['repo1']);
   });
 
-  it('should list repos from arbitrary directory', async () => {
+  it('should list repos from arbitrary directory (normalized)', async () => {
     (fs.promises.readdir as any).mockResolvedValue([
       { name: 'other-repo', isDirectory: () => true },
     ]);
     (git.resolveRef as any).mockResolvedValueOnce('oid');
 
     const repos = await gitService.listRepos('/any/path');
-    expect(fs.promises.readdir).toHaveBeenCalledWith('/any/path', expect.anything());
+    expect(fs.promises.readdir).toHaveBeenCalledWith('any/path', expect.anything());
     expect(repos).toEqual(['other-repo']);
   });
 
@@ -330,13 +358,21 @@ describe('GitService', () => {
     it('should normalize paths', () => {
       expect((gitService as any).norm('a\\b\\c')).toBe('a/b/c');
       expect((gitService as any).norm('a///b/')).toBe('a/b');
+      expect(gitService.sanitizePath('a\\b\\c')).toBe('a/b/c');
     });
 
     it('should check if under repos', () => {
       expect((gitService as any).isUnderRepos('test-repos/a')).toBe(true);
       expect((gitService as any).isUnderRepos('test-repos')).toBe(true);
-      // Still works as a helper, but no longer used for restriction
       expect((gitService as any).isUnderRepos('other/a')).toBe(false);
+      expect(gitService.isPathUnderRepos('test-repos/a')).toBe(true);
+      expect(gitService.isPathUnderRepos('other/a')).toBe(false);
+    });
+
+    it('should prevent path traversal in sanitizePath', () => {
+      expect(gitService.sanitizePath('repo/../../etc/passwd')).toBe('etc/passwd');
+      expect(gitService.sanitizePath('/etc/passwd')).toBe('etc/passwd');
+      expect(gitService.sanitizePath('..')).toBe('');
     });
   });
 

@@ -56,6 +56,23 @@
   #chat-container::-webkit-scrollbar-thumb:hover {
     @apply bg-gray-400;
   }
+
+  /* Thin scrollbar for long messages */
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 4px;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    @apply bg-gray-200 rounded-full opacity-50;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    @apply bg-gray-300;
+  }
   
   /* Input focus styles */
   #input:focus {

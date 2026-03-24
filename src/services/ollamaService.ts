@@ -83,7 +83,7 @@ export const ollamaResponse = async (req: Request, resp: Response) => {
         }
         messageArray.push({
             role: role as "user" | "assistant" | "system",
-            content: String(parsed.content)
+            content: String(parsed.content).trim()
         });
     }
     console.log(`Request messages: ${JSON.stringify(messageArray, null, 2)}`);
