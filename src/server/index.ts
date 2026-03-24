@@ -101,6 +101,22 @@ expressApp.post('/api/checkout-commits', async (req, res) => {
     }
 });
 
+// Endpoint to reset repository back to original state.
+// Body: { dir: string, deleteTempBranches?: boolean }
+expressApp.post('/api/reset-repo', async (req, res) => {
+    try {
+        const { dir, deleteTempBranches } = req.body || {};
+        if (typeof dir !== 'string' || !dir.trim()) {
+            return res.status(400).json({ error: 'Missing or invalid dir' });
+        }
+        const result = await gitService.reset(dir.trim(), { deleteTempBranches: !!deleteTempBranches });
+        res.json(result);
+    } catch (e: any) {
+        console.error('Reset repository failed', e);
+        res.status(500).json({ error: e?.message || String(e) });
+    }
+});
+
 // Endpoint to read git log from a cloned repo
 // Accepts either:
 //   - url: a repository URL (preferred) → server maps to repos/<sanitized>

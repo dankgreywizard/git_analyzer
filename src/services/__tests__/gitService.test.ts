@@ -204,7 +204,27 @@ describe('GitService', () => {
 
       const result = await gitService.readLogWithFiles('test-repos/repo1');
       expect(result.commits).toHaveLength(1);
-      expect(result.commits[0].files).toEqual([]);
+      expect(result.commits[0].files).toHaveLength(1);
+      expect(result.commits[0].files[0].path).toBe('error');
+      expect(result.commits[0].files[0].diff).toContain('walk failed');
+    });
+
+    it('should handle per-file errors in listChangedFiles', async () => {
+      const mockEntry = {
+        type: () => 'blob',
+        oid: () => 'blob-oid',
+        content: () => { throw new Error('Git limit reached'); }
+      };
+      
+      (git.walk as any).mockImplementation(async ({ map }: any) => {
+        return [await map('large_file.txt', [null, mockEntry])];
+      });
+
+      const files = await gitService.listChangedFiles('test-repos/repo1', 'old', 'new');
+      expect(files[0]).toMatchObject({
+        path: 'large_file.txt',
+        diff: expect.stringContaining('Git limit reached')
+      });
     });
 
     it('should test listChangedFiles walk map logic', async () => {
@@ -247,6 +267,62 @@ describe('GitService', () => {
       expect(result[1].status).toBe('added');
       expect(result[2].path).toBe('file4');
       expect(result[2].status).toBe('deleted');
+    });
+  });
+
+  describe('reset', () => {
+    it('should reset repository to default branch', async () => {
+      const dir = 'test-repos/repo1';
+      (git.resolveRef as any).mockResolvedValueOnce('oid-main');
+      (git.checkout as any).mockResolvedValue(undefined);
+
+      const result = await gitService.reset(dir);
+
+      expect(git.resolveRef).toHaveBeenCalledWith(expect.objectContaining({
+        dir,
+        ref: 'main',
+      }));
+      expect(git.checkout).toHaveBeenCalledWith(expect.objectContaining({
+        dir,
+        ref: 'main',
+        force: true,
+      }));
+      expect(result.branch).toBe('main');
+    });
+
+    it('should try multiple candidates for default branch', async () => {
+      const dir = 'test-repos/repo1';
+      (git.resolveRef as any)
+        .mockRejectedValueOnce(new Error('no main'))
+        .mockResolvedValueOnce('oid-master');
+      (git.checkout as any).mockResolvedValue(undefined);
+
+      const result = await gitService.reset(dir);
+
+      expect(git.resolveRef).toHaveBeenCalledTimes(2);
+      expect(result.branch).toBe('master');
+    });
+
+    it('should delete temporary branches if requested', async () => {
+      const dir = 'test-repos/repo1';
+      (git.resolveRef as any).mockResolvedValue('oid');
+      (git.checkout as any).mockResolvedValue(undefined);
+      (git.listBranches as any).mockResolvedValue(['main', 'branch-1', 'other']);
+      (git.deleteBranch as any).mockResolvedValue(undefined);
+
+      await gitService.reset(dir, { deleteTempBranches: true });
+
+      expect(git.listBranches).toHaveBeenCalled();
+      expect(git.deleteBranch).toHaveBeenCalledWith(expect.objectContaining({
+        ref: 'branch-1',
+      }));
+      expect(git.deleteBranch).not.toHaveBeenCalledWith(expect.objectContaining({
+        ref: 'other',
+      }));
+    });
+
+    it('should throw error if outside repos base', async () => {
+      await expect(gitService.reset('/outside')).rejects.toThrow('outside repos base');
     });
   });
 

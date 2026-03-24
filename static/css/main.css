@@ -990,6 +990,10 @@ button:not(:disabled):active {
   --tw-border-opacity: 1;
   border-color: rgb(191 219 254 / var(--tw-border-opacity, 1));
 }
+.border-gray-100 {
+  --tw-border-opacity: 1;
+  border-color: rgb(243 244 246 / var(--tw-border-opacity, 1));
+}
 .border-gray-200 {
   --tw-border-opacity: 1;
   border-color: rgb(229 231 235 / var(--tw-border-opacity, 1));
@@ -1001,6 +1005,10 @@ button:not(:disabled):active {
 .border-green-200 {
   --tw-border-opacity: 1;
   border-color: rgb(187 247 208 / var(--tw-border-opacity, 1));
+}
+.border-red-100 {
+  --tw-border-opacity: 1;
+  border-color: rgb(254 226 226 / var(--tw-border-opacity, 1));
 }
 .border-red-200 {
   --tw-border-opacity: 1;
@@ -1302,6 +1310,14 @@ button:not(:disabled):active {
   --tw-text-opacity: 1;
   color: rgb(21 128 61 / var(--tw-text-opacity, 1));
 }
+.text-red-500 {
+  --tw-text-opacity: 1;
+  color: rgb(239 68 68 / var(--tw-text-opacity, 1));
+}
+.text-red-600 {
+  --tw-text-opacity: 1;
+  color: rgb(220 38 38 / var(--tw-text-opacity, 1));
+}
 .text-red-700 {
   --tw-text-opacity: 1;
   color: rgb(185 28 28 / var(--tw-text-opacity, 1));
@@ -1410,6 +1426,10 @@ button:not(:disabled):active {
 
 .animate-pulse-dot {
   animation: pulse-dot 1.5s ease-in-out infinite;
+}
+
+.last\:border-0:last-child {
+  border-width: 0px;
 }
 
 .hover\:border-blue-300:hover {

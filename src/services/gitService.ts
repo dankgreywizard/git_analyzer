@@ -188,8 +188,14 @@ export class GitService {
       let files: any[] = [];
       try {
         files = parentOid ? await this.listChangedFiles(normDir, parentOid, oid) : await this.listChangedFiles(normDir, undefined, oid);
-      } catch {
-        files = [];
+      } catch (e: any) {
+        // If the entire listing fails, we provide a descriptive error message as a dummy file entry
+        // This ensures the user knows why file data is missing for this commit.
+        files = [{ 
+          path: 'error', 
+          status: 'modified', 
+          diff: `Failed to list changed files for this commit: ${e?.message || String(e)}` 
+        }];
       }
       result.push({
         oid,
@@ -247,74 +253,142 @@ export class GitService {
           // Simplified "diff" - just show the new content if added, or simple change indicator
           // In a real app we might use a diff library, but for AI analysis, providing 
           // both contents or a simple representation works.
-    if (status === 'added') {
-      diff = `File: ${filepath} (added)\nContent:\n${textB.slice(0, 10000)}${textB.length > 10000 ? '\n[... truncated ...]' : ''}`;
-    } else if (status === 'deleted') {
-      diff = `File: ${filepath} (deleted)\nFormer Content:\n${textA.slice(0, 10000)}${textA.length > 10000 ? '\n[... truncated ...]' : ''}`;
-    } else {
-      // modified - use a very basic line-by-line comparison for the AI
-      const linesA = textA.split('\n');
-      const linesB = textB.split('\n');
-      
-      // Let's implement a slightly better context-aware diff for the AI
-      // if it's not too huge.
-      if (linesA.length < 2000 && linesB.length < 2000) {
-        diff = `File: ${filepath} (modified)\n--- old\n+++ new\n`;
-        
-        // Very simple diff to highlight changes for the AI
-        // This helps the AI see exactly what changed line-by-line
-        let i = 0, j = 0;
-        while (i < linesA.length || j < linesB.length) {
-          if (i < linesA.length && j < linesB.length && linesA[i] === linesB[j]) {
-            // Context line (only show if near a change)
-            // For now, let's show all lines if the file is small enough, 
-            // or just the changes if we want to be more efficient.
-            // Simplified: show everything with markers to be safe for LLM
-            diff += `  ${linesA[i]}\n`;
-            i++; j++;
+          if (status === 'added') {
+            diff = `File: ${filepath} (added)\nContent:\n${textB.slice(0, 10000)}${textB.length > 10000 ? '\n[... truncated ...]' : ''}`;
+          } else if (status === 'deleted') {
+            diff = `File: ${filepath} (deleted)\nFormer Content:\n${textA.slice(0, 10000)}${textA.length > 10000 ? '\n[... truncated ...]' : ''}`;
           } else {
-            // Change detected
-            let lookAhead = 1;
-            let foundMatch = false;
-            while (lookAhead < 10 && (i + lookAhead < linesA.length || j + lookAhead < linesB.length)) {
-              if (i + lookAhead < linesA.length && linesA[i+lookAhead] === linesB[j]) {
-                for(let k=0; k<lookAhead; k++) diff += `-${linesA[i+k]}\n`;
-                i += lookAhead;
-                foundMatch = true;
-                break;
+            // modified - use a very basic line-by-line comparison for the AI
+            const linesA = textA.split('\n');
+            const linesB = textB.split('\n');
+            
+            // Let's implement a slightly better context-aware diff for the AI
+            // if it's not too huge.
+            if (linesA.length < 2000 && linesB.length < 2000) {
+              diff = `File: ${filepath} (modified)\n--- old\n+++ new\n`;
+              
+              // Very simple diff to highlight changes for the AI
+              // This helps the AI see exactly what changed line-by-line
+              let i = 0, j = 0;
+              while (i < linesA.length || j < linesB.length) {
+                if (i < linesA.length && j < linesB.length && linesA[i] === linesB[j]) {
+                  // Context line (only show if near a change)
+                  // For now, let's show all lines if the file is small enough, 
+                  // or just the changes if we want to be more efficient.
+                  // Simplified: show everything with markers to be safe for LLM
+                  diff += `  ${linesA[i]}\n`;
+                  i++; j++;
+                } else {
+                  // Change detected
+                  let lookAhead = 1;
+                  let foundMatch = false;
+                  while (lookAhead < 10 && (i + lookAhead < linesA.length || j + lookAhead < linesB.length)) {
+                    if (i + lookAhead < linesA.length && linesA[i+lookAhead] === linesB[j]) {
+                      for(let k=0; k<lookAhead; k++) diff += `-${linesA[i+k]}\n`;
+                      i += lookAhead;
+                      foundMatch = true;
+                      break;
+                    }
+                    if (j + lookAhead < linesB.length && linesA[i] === linesB[j+lookAhead]) {
+                      for(let k=0; k<lookAhead; k++) diff += `+${linesB[j+k]}\n`;
+                      j += lookAhead;
+                      foundMatch = true;
+                      break;
+                    }
+                    lookAhead++;
+                  }
+                  if (!foundMatch) {
+                     if (i < linesA.length) { diff += `-${linesA[i]}\n`; i++; }
+                     if (j < linesB.length) { diff += `+${linesB[j]}\n`; j++; }
+                  }
+                }
+                // Cap diff size per file
+                if (diff.length > 10000) {
+                  diff += `\n[... diff truncated due to size ...]`;
+                  break;
+                }
               }
-              if (j + lookAhead < linesB.length && linesA[i] === linesB[j+lookAhead]) {
-                for(let k=0; k<lookAhead; k++) diff += `+${linesB[j+k]}\n`;
-                j += lookAhead;
-                foundMatch = true;
-                break;
-              }
-              lookAhead++;
-            }
-            if (!foundMatch) {
-               if (i < linesA.length) { diff += `-${linesA[i]}\n`; i++; }
-               if (j < linesB.length) { diff += `+${linesB[j]}\n`; j++; }
+            } else {
+              diff = `File: ${filepath} (modified)\n[Content too large for detailed diff, providing new content summary]\n`;
+              diff += textB.slice(0, 5000) + (textB.length > 5000 ? '\n...' : '');
             }
           }
-          // Cap diff size per file
-          if (diff.length > 10000) {
-            diff += `\n[... diff truncated due to size ...]`;
-            break;
+        } catch (e: any) {
+          // Identify potential git limits or data-related issues
+          const msg = e?.message || String(e);
+          if (msg.includes('too large') || msg.includes('limit')) {
+            diff = `File: ${filepath} skipped: Git limit reached or file too large for analysis.`;
+          } else if (msg.includes('binary')) {
+            diff = `File: ${filepath} skipped: Binary files are not supported for AI analysis.`;
+          } else {
+            diff = `File: ${filepath} skipped: Error generating diff (${msg})`;
           }
-        }
-      } else {
-        diff = `File: ${filepath} (modified)\n[Content too large for detailed diff, providing new content summary]\n`;
-        diff += textB.slice(0, 5000) + (textB.length > 5000 ? '\n...' : '');
-      }
-    }
-        } catch (e) {
-          diff = `Error reading content for ${filepath}`;
         }
 
         return { path: filepath, status, diff };
       }
     });
     return entries.filter(Boolean);
+  }
+
+  /**
+   * Resets a repository to its default branch (e.g., main or master) and optionally deletes temporary branches.
+   * @param dir The repository directory.
+   * @param options Optional reset settings (targetBranch, deleteTempBranches).
+   * @returns The target branch after reset.
+   */
+  async reset(dir: string, options?: { targetBranch?: string; deleteTempBranches?: boolean }): Promise<{ branch: string }> {
+    const targetDir = this.norm(dir);
+    if (!this.isUnderRepos(targetDir)) {
+      throw new Error(`Reset failed: ${targetDir} is outside repos base`);
+    }
+
+    let targetBranch = options?.targetBranch;
+
+    // If target branch is not provided, try to find the default branch (main, master, or via remotes)
+    if (!targetBranch) {
+      const candidates = ['main', 'master', 'origin/main', 'origin/master'];
+      for (const candidate of candidates) {
+        try {
+          await git.resolveRef({ fs, dir: targetDir, ref: candidate });
+          targetBranch = candidate;
+          break;
+        } catch {}
+      }
+    }
+
+    // Default to 'main' if none found
+    if (!targetBranch) {
+      targetBranch = 'main';
+    }
+
+    try {
+      // Check out the target branch
+      await git.checkout({
+        fs,
+        dir: targetDir,
+        ref: targetBranch,
+        force: true, // Always force reset for this operation
+      });
+
+      // Optionally delete all temporary branches (branch-*)
+      if (options?.deleteTempBranches) {
+        const branches = await git.listBranches({ fs, dir: targetDir });
+        const tempBranches = branches.filter((b) => b.startsWith('branch-'));
+        for (const b of tempBranches) {
+          try {
+            await git.deleteBranch({ fs, dir: targetDir, ref: b });
+          } catch (e) {
+            console.error(`Failed to delete branch ${b}`, e);
+          }
+        }
+      }
+
+      return { branch: targetBranch };
+    } catch (e: any) {
+      console.error(`Reset failed for ${targetDir}`, e);
+      throw new Error(`Reset failed for ${targetDir}: ${e.message}`);
+    }
   }
 
   // Helpers

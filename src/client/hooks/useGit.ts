@@ -77,7 +77,8 @@ export function useGit({
 
   const checkoutSelectedCommits = useCallback(async () => {
     if (selectedCommitOids.size === 0) {
-      updateStatus('No commits selected for checkout', 'yellow');
+      // If nothing is selected, fall back to analyzing everything.
+      analyzeCommitsWithAI();
       return;
     }
     const lastOp = [...gitEntries].reverse().find(e => (e.op === 'open' || e.op === 'clone') && e.status === 'success');
@@ -144,6 +145,45 @@ export function useGit({
     }
   }, [selectedCommitOids, gitEntries, updateStatus, analyzeCommitsWithAI, commitLog]);
 
+  const resetRepository = useCallback(async (deleteTempBranches = true) => {
+    const lastOp = [...gitEntries].reverse().find(e => (e.op === 'open' || e.op === 'clone' || e.op === 'checkout-multiple') && e.status === 'success');
+    if (!lastOp || !lastOp.request?.dir) {
+      updateStatus('No active repository to reset', 'red');
+      return;
+    }
+
+    const dir = lastOp.request.dir;
+    setGitLoading(true);
+    updateStatus('Resetting repository...', 'yellow');
+
+    try {
+      const res = await fetch('/api/reset-repo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dir, deleteTempBranches }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setGitEntries(prev => [...prev, {
+          id: String(Date.now()) + Math.random().toString(36).slice(2),
+          time: Date.now(),
+          op: 'reset',
+          status: 'success',
+          request: { dir, deleteTempBranches },
+          data
+        }]);
+        updateStatus(`Repository reset to ${data.branch}`, 'green');
+      } else {
+        const errorMsg = data?.error || 'Reset failed';
+        updateStatus(`Reset failed: ${errorMsg}`, 'red');
+      }
+    } catch (e: any) {
+      updateStatus(`Reset failed: ${e?.message || String(e)}`, 'red');
+    } finally {
+      setGitLoading(false);
+    }
+  }, [gitEntries, updateStatus]);
+
   return {
     gitEntries,
     setGitEntries,
@@ -153,5 +193,6 @@ export function useGit({
     setGitLoading,
     analyzeCommitsWithAI,
     checkoutSelectedCommits,
+    resetRepository,
   };
 }
