@@ -92,7 +92,86 @@ describe('SettingsView', () => {
 
         expect(fetch).toHaveBeenCalledWith('/api/config', expect.objectContaining({
             method: 'POST',
-            body: JSON.stringify({ apiKey: 'saved-key', systemPrompt: 'saved-prompt' }),
+            body: expect.stringContaining('"apiKey":"saved-key"'),
+        }));
+    });
+
+    it('should update persona and system prompt when persona is changed', async () => {
+        const mockConfig = {
+            apiKey: 'test-api-key',
+            persona: 'Expert Code Reviewer',
+            systemPrompt: 'Initial prompt'
+        };
+
+        (vi.mocked(fetch) as any).mockResolvedValueOnce({
+            ok: true,
+            json: async () => mockConfig,
+        });
+
+        render(<SettingsView />);
+
+        await waitFor(() => {
+            expect(screen.getByLabelText(/AI Persona/i)).toHaveValue('Expert Code Reviewer');
+        });
+
+        const personaSelect = screen.getByLabelText(/AI Persona/i);
+        fireEvent.change(personaSelect, { target: { value: 'Security Analyst' } });
+
+        expect(personaSelect).toHaveValue('Security Analyst');
+        // Check if system prompt updated to Security Analyst preset
+        await waitFor(() => {
+            const promptValue = (screen.getByLabelText(/System Prompt/i) as HTMLTextAreaElement).value;
+            expect(promptValue.toLowerCase()).toContain('security analyst');
+        });
+
+        (vi.mocked(fetch) as any).mockResolvedValueOnce({
+            ok: true,
+        });
+
+        const saveButton = screen.getByRole('button', { name: /Save Configuration/i });
+        fireEvent.click(saveButton);
+
+        await waitFor(() => {
+            expect(screen.getByText(/Configuration saved successfully/i)).toBeDefined();
+        });
+
+        expect(fetch).toHaveBeenCalledWith('/api/config', expect.objectContaining({
+            method: 'POST',
+            body: expect.stringContaining('"persona":"Security Analyst"'),
+        }));
+    });
+
+    it('should handle custom timeout input', async () => {
+        (vi.mocked(fetch) as any).mockResolvedValueOnce({
+            ok: true,
+            json: async () => ({ timeout: 30000 }),
+        });
+
+        render(<SettingsView />);
+
+        await waitFor(() => {
+            expect(screen.getByLabelText(/AI Request Timeout/i)).toHaveValue(30000);
+        });
+
+        const timeoutInput = screen.getByLabelText(/AI Request Timeout/i);
+        fireEvent.change(timeoutInput, { target: { value: '60000' } });
+
+        expect(timeoutInput).toHaveValue(60000);
+
+        (vi.mocked(fetch) as any).mockResolvedValueOnce({
+            ok: true,
+        });
+
+        const saveButton = screen.getByRole('button', { name: /Save Configuration/i });
+        fireEvent.click(saveButton);
+
+        await waitFor(() => {
+            expect(screen.getByText(/Configuration saved successfully/i)).toBeDefined();
+        });
+
+        expect(fetch).toHaveBeenCalledWith('/api/config', expect.objectContaining({
+            method: 'POST',
+            body: expect.stringContaining('"timeout":60000'),
         }));
     });
 
