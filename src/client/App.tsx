@@ -86,9 +86,10 @@ export default function App() {
 
     if (!currentChatId) setCurrentChatId(String(Date.now()));
     
+    setInputValue("");
     sendMessage(
       userInput,
-      () => setInputValue(""),
+      () => {},
       updateStatus,
       scrollToBottom
     );

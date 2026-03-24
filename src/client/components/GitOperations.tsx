@@ -175,6 +175,7 @@ export default function GitOperations({
               onClick={() => { fetchRepos(); setShowSelectModal(true); }} 
               disabled={busy || disabled}
               className="whitespace-nowrap"
+              title="Browse and select from local repositories"
             >
               Select...
             </Button>
@@ -200,9 +201,9 @@ export default function GitOperations({
           />
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="danger" onClick={handleClone} disabled={busy || disabled}>Clone</Button>
-          <Button variant="primary" onClick={handleOpen} disabled={busy || disabled}>Open</Button>
-          <Button variant="dark" onClick={() => handleLog()} disabled={busy || disabled}>Log</Button>
+          <Button variant="danger" onClick={handleClone} disabled={busy || disabled} title="Clone the specified remote repository to the server">Clone</Button>
+          <Button variant="primary" onClick={handleOpen} disabled={busy || disabled} title="Open the specified repository and fetch its commit log">Open</Button>
+          <Button variant="dark" onClick={() => handleLog()} disabled={busy || disabled} title="Fetch and refresh the commit log for the current repository">Log</Button>
         </div>
       </div>
 
@@ -223,7 +224,7 @@ export default function GitOperations({
                 placeholder="e.g. repos or /home/user/projects"
                 className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50"
               />
-              <Button variant="secondary" onClick={fetchRepos} disabled={loadingRepos}>Scan</Button>
+              <Button variant="secondary" onClick={fetchRepos} disabled={loadingRepos} title="Re-scan the base directory for repositories">Scan</Button>
             </div>
           </div>
           <div className="space-y-2 max-h-96 overflow-y-auto">

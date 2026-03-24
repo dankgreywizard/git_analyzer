@@ -22,7 +22,7 @@ export const streamAIResponse = async (req: Request, res: Response, stream: any)
                 console.log('Stopping AI stream due to client disconnection');
                 break;
             }
-            const chunk = (part && (part as any).message && (part as any).message.content) ?? (part as any)?.response ?? '';
+            const chunk = (part && (part as any).message && (part as any).message.content) ?? (part as any)?.response ?? (part as any)?.content ?? '';
             if (chunk) {
                 res.write(chunk);
             }
@@ -46,27 +46,39 @@ export const streamAIResponse = async (req: Request, res: Response, stream: any)
  * @param resp Express response object to stream the reply.
  */
 export const ollamaResponse = async (req: Request, resp: Response) => {
-    console.log("waiting  for response");
+    console.log("Waiting for AI response from ollamaResponse endpoint...");
     const content = req.body;
+    console.log(`Request body type: ${typeof content}, isArray: ${Array.isArray(content)}`);
     if (!Array.isArray(content)) {
-        return resp.status(400).json({ error: "Invalid request body: expected array of strings" });
+        console.error("Invalid request body: expected array", content);
+        return resp.status(400).json({ error: "Invalid request body: expected array of objects or strings" });
     }
     const messageArray: Message[] = [];
     for (let x = 0; x < content.length; x++) {
-        if (typeof content[x] !== 'string') {
-            return resp.status(400).json({ error: `Invalid message at index ${x}: expected string` });
+        let item = content[x];
+        console.log(`Processing message at index ${x}, type: ${typeof item}`);
+        let parsed: any = null;
+        if (typeof item === 'string') {
+            try {
+                parsed = JSON.parse(item);
+            } catch (e) {
+                console.error(`Failed to parse message history at index ${x}: ${item}`);
+                return resp.status(400).json({ error: `Failed to parse message history at index ${x}` });
+            }
+        } else if (typeof item === 'object' && item !== null) {
+            parsed = item;
+        } else {
+            console.error(`Invalid message at index ${x}: expected string or object, got ${typeof item}`);
+            return resp.status(400).json({ error: `Invalid message at index ${x}: expected string or object` });
         }
-        let parsed;
-        try {
-            parsed = JSON.parse(content[x]);
-        } catch (e) {
-            return resp.status(400).json({ error: `Failed to parse message history at index ${x}` });
-        }
+
         if (!parsed || typeof parsed !== 'object' || !parsed.role || !parsed.content) {
+            console.error(`Invalid message structure at index ${x}:`, parsed);
             return resp.status(400).json({ error: `Invalid message structure at index ${x}` });
         }
         const role = String(parsed.role);
         if (role !== 'user' && role !== 'assistant' && role !== 'system') {
+            console.error(`Invalid role at index ${x}: ${role}`);
             return resp.status(400).json({ error: `Invalid role at index ${x}: ${role}` });
         }
         messageArray.push({
@@ -74,15 +86,35 @@ export const ollamaResponse = async (req: Request, resp: Response) => {
             content: String(parsed.content)
         });
     }
-    console.log(`request body ${JSON.stringify(messageArray)}`);
+    console.log(`Request messages: ${JSON.stringify(messageArray, null, 2)}`);
     
-    const config = await configService.getConfig();
-    const aiService = await getAIService();
-    const response = await aiService.chat({
-        model: config.defaultModel || 'codellama:latest',
-        messages: messageArray,
-        stream: true,
-    });
-    
-    await streamAIResponse(req, resp, response);
+    try {
+        const config = await configService.getConfig();
+        const aiService = await getAIService();
+        
+        // Ensure system prompt is prepended if not already present
+        const messagesWithSystem: Message[] = [...messageArray];
+        const hasSystem = messagesWithSystem.some(m => m.role === 'system');
+        if (!hasSystem && config.systemPrompt) {
+            messagesWithSystem.unshift({ role: 'system', content: config.systemPrompt });
+        }
+
+        console.log(`Using AI model: ${config.defaultModel || 'codellama:latest'} with timeout: ${config.timeout}ms`);
+        const response = await aiService.chat({
+            model: config.defaultModel || 'codellama:latest',
+            messages: messagesWithSystem,
+            stream: true,
+            timeout: config.timeout,
+        });
+        
+        await streamAIResponse(req, resp, response);
+    } catch (e: any) {
+        console.error("Error calling AI service:", e);
+        if (!resp.headersSent) {
+            resp.status(500).json({ error: `AI service error: ${e?.message || String(e)}` });
+        } else {
+            resp.write(`\n[AI service error: ${e?.message || String(e)}]\n`);
+            resp.end();
+        }
+    }
 }

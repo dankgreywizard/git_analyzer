@@ -24,10 +24,10 @@ export default function Modal({ open, title, timestamp, onClose, children, onCon
             {timestamp ? <p className="text-sm text-gray-500 mt-1">{timestamp}</p> : null}
           </div>
           <div className="flex items-center space-x-2">
-            <Button variant="primary" onClick={onContinue}>
+            <Button variant="primary" onClick={onContinue} title="Restore this chat session and continue">
               Continue Chat
             </Button>
-            <Button variant="ghost" onClick={onClose} aria-label="Close modal">
+            <Button variant="ghost" onClick={onClose} aria-label="Close modal" title="Close this preview">
               ✕
             </Button>
           </div>

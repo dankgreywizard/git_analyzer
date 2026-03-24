@@ -172,9 +172,12 @@ expressApp.get('/api/ollama/models', async (_req, res) => {
 
 // Analyze commits via LLM (currently supports Ollama) and stream response as text/plain
 expressApp.post('/api/analyze-commits', async (req: Request, res: Response) => {
+    console.log("Starting commit analysis request...");
     try {
         const { commits, model, maxCommits, instructions } = req.body || {};
+        console.log(`Analysis request: commits count=${Array.isArray(commits) ? commits.length : 'invalid'}, model=${model}`);
         if (!Array.isArray(commits) || commits.length === 0) {
+            console.error("Invalid commits array in analysis request");
             return res.status(400).json({ error: 'Missing or invalid commits array' });
         }
         
@@ -213,11 +216,11 @@ expressApp.post('/api/analyze-commits', async (req: Request, res: Response) => {
         const systemPrompt = config.systemPrompt || `You are an expert code reviewer. Analyze the following commits and provide a comprehensive review:
 1) Executive Summary: A concise overview of the changes across ALL selected commits.
 2) Detailed File Analysis: For EACH and EVERY commit provided, explain the purpose of the changes in the individual files based on the provided diffs. Do not skip any commits.
-3) Architectural Impact: How these changes affect the overall system, potential grouping by area/module.
-4) Risk Assessment: Identify potential bugs, breaking changes, or security concerns based on the actual code changes.
-5) Testing Strategy: Specific, actionable suggestions for verifying these changes.
+3) Architectural Impact: How these changes affect the overall system, including any modifications to interfaces or public APIs.
+4) Risk Assessment: Identify potential bugs, edge cases, breaking changes, or security concerns.
+5) Testing Strategy: Specific, actionable suggestions for verifying the new or changed functionality.
 
-Your tone should be professional and constructive. Focus on the "why" and "how" of the code changes, not just "what" files changed. Use the provided diffs to give specific examples in your explanation. Ensure your review covers all commits listed in the user prompt.`;
+Your tone should be professional and constructive. Use the provided diffs to give specific examples in your explanation. Ensure your review covers all commits listed in the user prompt.`;
 
         const userPrompt = {
             task: 'Review the following commits and explain the differences and impact of the changes.',
@@ -229,19 +232,22 @@ Your tone should be professional and constructive. Focus on the "why" and "how" 
         const aiService = await getAIService();
         let stream;
         
+        console.log(`Analyzing ${compact.length} commits with model: ${selectedModel} and timeout: ${config.timeout}ms`);
         try {
             stream = await aiService.chat({
                 model: selectedModel,
                 stream: true,
+                timeout: config.timeout,
                 messages: [
                     { role: 'system', content: systemPrompt },
                     { role: 'user', content: JSON.stringify(userPrompt) },
                 ],
             });
+            console.log("AI analysis stream started");
         } catch (aiError: any) {
-            console.error('AI Service failed to start stream', aiError);
+            console.error('AI Service failed to start analysis stream', aiError);
             if (!res.headersSent) {
-                res.status(502).end(JSON.stringify({ error: `AI Provider error: ${aiError.message || String(aiError)}` }));
+                res.status(502).json({ error: `AI Provider error: ${aiError.message || String(aiError)}` });
             }
             return;
         }
@@ -265,7 +271,7 @@ expressApp.get('/api/config', async (_req, res) => {
 // Update AI configuration
 expressApp.post('/api/config', async (req, res) => {
     try {
-        const { apiKey, baseUrl, defaultModel, availableModels, systemPrompt } = req.body || {};
+        const { apiKey, baseUrl, defaultModel, availableModels, systemPrompt, persona, timeout } = req.body || {};
         
         // Basic type validation for settings
         const sanitized: any = {};
@@ -274,6 +280,8 @@ expressApp.post('/api/config', async (req, res) => {
         if (defaultModel !== undefined) sanitized.defaultModel = typeof defaultModel === 'string' ? defaultModel.trim() : '';
         if (availableModels !== undefined) sanitized.availableModels = typeof availableModels === 'string' ? availableModels.trim() : '';
         if (systemPrompt !== undefined) sanitized.systemPrompt = typeof systemPrompt === 'string' ? systemPrompt.trim() : '';
+        if (persona !== undefined) sanitized.persona = typeof persona === 'string' ? persona.trim() : '';
+        if (timeout !== undefined) sanitized.timeout = typeof timeout === 'number' ? timeout : parseInt(String(timeout)) || 30000;
 
         await configService.updateConfig(sanitized);
         res.json({ ok: true });
