@@ -2,6 +2,7 @@ import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import GitView from '../GitView';
+import { GitEntry } from '../../../types/git';
 
 vi.mock('../GitOperations', () => ({
   default: ({ onBusyChange }: any) => (
@@ -42,7 +43,7 @@ describe('GitView', () => {
   });
 
   it('shows current operation text when loading', () => {
-    const gitEntries: GitEntry[] = [{ op: 'clone', status: 'success', timestamp: new Date() }];
+    const gitEntries: GitEntry[] = [{ id: '1', op: 'clone', status: 'success', time: Date.now(), request: {} }];
     render(<GitView {...defaultProps} gitLoading={true} gitEntries={gitEntries} />);
     expect(screen.getByText('Cloning...')).toBeInTheDocument();
   });
