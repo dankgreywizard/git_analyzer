@@ -40,7 +40,7 @@ describe('API Endpoints - Integration and Security', () => {
         app.post('/api/clone', async (req: any, res: any) => {
             const { url, dir } = req.body || {};
             if (typeof url !== 'string' || !url.trim()) return res.status(400).json({ error: 'Missing or invalid url' });
-            
+
             const trimmedUrl = url.trim();
             const sanitizedDir = typeof dir === 'string' && dir.trim() ? gitServiceMock.sanitizePath(dir.trim()) : undefined;
             if (sanitizedDir && !gitServiceMock.isPathUnderRepos(sanitizedDir)) {
@@ -335,9 +335,9 @@ describe('API Endpoints - Integration and Security', () => {
 
         it('should return 400 if dir is outside repos', async () => {
             gitServiceMock.isPathUnderRepos.mockReturnValue(false);
-            const response = await request(app).post('/api/analyze-commits').send({ 
-                dir: '/etc/passwd', 
-                commits: [{ oid: '1234567890abcdef1234567890abcdef12345678' }] 
+            const response = await request(app).post('/api/analyze-commits').send({
+                dir: '/etc/passwd',
+                commits: [{ oid: '1234567890abcdef1234567890abcdef12345678' }]
             });
             expect(response.status).toBe(400);
             expect(response.body.error).toContain('repository directory');

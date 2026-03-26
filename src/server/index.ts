@@ -235,7 +235,7 @@ expressApp.post('/api/analyze-commits', async (req: Request, res: Response) => {
                 return res.status(400).json({ error: `Invalid commit OID in analysis list: ${oid}` });
             }
         }
-        
+
         if (typeof dir === 'string' && dir.trim()) {
             const normDir = gitService.sanitizePath(dir.trim());
             if (!gitService.isPathUnderRepos(normDir)) {

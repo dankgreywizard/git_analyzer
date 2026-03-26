@@ -73,7 +73,7 @@ export default function GitOperations({
       if (!res.ok) throw new Error(data?.error || "Clone failed");
       pushResult({ op: "clone", status: "success", request: { url: repoUrl }, data });
       updateStatus?.("Clone successful. Fetching log...", "green");
-      
+
       // Automatically trigger log after cloning
       await handleLog(true);
       updateStatus?.("Log fetched successfully", "green");
@@ -101,7 +101,7 @@ export default function GitOperations({
         // Determine if it's a URL or a path
         let isUrl = false;
         try { new URL(repoUrl); isUrl = true; } catch {}
-        
+
         const res = await fetch("/api/open", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -111,7 +111,7 @@ export default function GitOperations({
         if (!res.ok) throw new Error(data?.error || "Open failed");
         pushResult({ op: "open", status: "success", request: { url: isUrl ? repoUrl : undefined, dir: !isUrl ? repoUrl : undefined }, data });
         updateStatus?.("Repository opened successfully. Fetching log...", "green");
-        
+
         // Automatically trigger log after opening
         await handleLog(true);
         updateStatus?.("Log fetched successfully", "green");

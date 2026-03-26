@@ -159,7 +159,7 @@ npm start
 - **Start Frontend**: `npm run client`
 - **Build All**: `npm run build`
 - **Build CSS**: `npm run build:css`
-- **Run Tests**: `npm test` (217 tests currently passing across 24 files)
+- **Run Tests**: `npm test` (173 tests currently passing across 24 files)
 
 ### API Endpoints (Core)
 - **POST `/api/clone`**: Clone a Git repository to the server.
