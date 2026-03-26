@@ -16,6 +16,7 @@ services:
 
   ollama:
     image: ollama/ollama:latest
+    pull_policy: always
     environment:
       - OLLAMA_HOST=0.0.0.0
     ports:
