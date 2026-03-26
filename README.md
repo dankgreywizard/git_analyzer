@@ -7,7 +7,7 @@ A modern web application that combines local AI capabilities with Git repository
 - **Git Operations**: Clone public repositories, view commit history, and **checkout multiple commits simultaneously** into their own branches.
 - **Current Status Display**: Large-text, color-coded status indicator in the Git View for immediate feedback on operations (e.g., **Green** for Success, **Red** for Failure).
 - **Reset Repository**: Easily restore your repository to its default branch (`main`/`master`) and clean up temporary `branch-*` branches with a single click.
-- **AI-Powered Code Review**: Support for both local LLMs (via [Ollama](https://ollama.com/)) and external AI providers (OpenAI, Anthropic, etc.) acting as an **expert code reviewer**.
+- **AI-Powered Code Review**: Support for both local LLMs (via [Ollama](https://ollama.com/)) and external AI providers (OpenAI, Anthropic, etc. - **Note: External providers have not been tested at all; only the `codellama` model has been used**) acting as an **expert code reviewer**.
 - **Unified Analysis Flow**: A single "Analyze with AI" button that handles both general repository analysis and specific commit-level reviews (with automatic batch checkout).
 - **Modern Navigation**: New persistent **Sidebar Navigation** for faster switching between Git, Chat, and Settings views with tooltip support.
 - **Toggleable Chat History**: Accessible via a dedicated "History" modal in the Chat header, freeing up screen space for active conversations.
@@ -52,7 +52,7 @@ A modern web application that combines local AI capabilities with Git repository
 - **Node.js**: v20 or higher recommended.
 - **LLM Provider**: 
   - **Local**: [Ollama](https://ollama.com/) can be used for local AI features.
-  - **External**: Supports OpenAI, Anthropic, and other OpenAI-compatible APIs.
+  - **External**: Supports OpenAI, Anthropic, and other OpenAI-compatible APIs (**Note: External providers have not been tested at all; only the `codellama` model has been used**).
 
 ## ⚙️ Configuration
 
@@ -61,7 +61,7 @@ The application can be configured using environment variables:
 - `PORT`: Server port (default: 5000).
 - `WDS_PORT`: Frontend development server port (default: 5100).
 - `BODY_LIMIT`: Maximum JSON request size (e.g., '10mb').
-- `AI_API_KEY`: API key for an external AI provider (e.g., OpenAI, Claude).
+- `AI_API_KEY`: API key for an external AI provider (e.g., OpenAI, Claude). **Note: Support for external providers is currently experimental and has not been tested at all; only the `codellama` model has been used.**
 - `AI_BASE_URL`: Base URL for the AI provider. Defaults to 'https://api.openai.com/v1' if `AI_API_KEY` is set, otherwise defaults to Ollama's default (http://localhost:11434).
 - `AI_MODEL`: Default AI model to use (default: 'codellama:latest' for Ollama, 'gpt-4o' for OpenAI).
 - `AI_MODELS`: Comma-separated list of models to display in the UI when using an external provider.
