@@ -21,7 +21,8 @@ describe('SettingsView', () => {
             baseUrl: 'https://test.url',
             defaultModel: 'gpt-4',
             availableModels: 'gpt-4,gpt-3.5-turbo',
-            systemPrompt: 'test-system-prompt'
+            systemPrompt: 'test-system-prompt',
+            maxDiffLength: 10000
         };
 
         (vi.mocked(fetch) as any).mockResolvedValueOnce({
@@ -42,12 +43,13 @@ describe('SettingsView', () => {
         expect(screen.getByLabelText(/Default AI Model/i)).toHaveValue('gpt-4');
         expect(screen.getByLabelText(/Available Models/i)).toHaveValue('gpt-4,gpt-3.5-turbo');
         expect(screen.getByLabelText(/System Prompt/i)).toHaveValue('test-system-prompt');
+        expect(screen.getByLabelText(/Max Diff Character Limit/i)).toHaveValue(10000);
     });
 
     it('should update state when inputs change', async () => {
         (vi.mocked(fetch) as any).mockResolvedValueOnce({
             ok: true,
-            json: async () => ({}),
+            json: async () => ({ maxDiffLength: 15000 }),
         });
 
         render(<SettingsView />);
@@ -59,12 +61,16 @@ describe('SettingsView', () => {
         const apiKeyInput = screen.getByLabelText(/AI API Key/i);
         fireEvent.change(apiKeyInput, { target: { value: 'new-key' } });
         expect(apiKeyInput).toHaveValue('new-key');
+
+        const maxDiffInput = screen.getByLabelText(/Max Diff Character Limit/i);
+        fireEvent.change(maxDiffInput, { target: { value: '25000' } });
+        expect(maxDiffInput).toHaveValue(25000);
     });
 
     it('should save configuration when form is submitted', async () => {
         (vi.mocked(fetch) as any).mockResolvedValueOnce({
             ok: true,
-            json: async () => ({}),
+            json: async () => ({ maxDiffLength: 10000 }),
         });
 
         render(<SettingsView />);
@@ -100,7 +106,8 @@ describe('SettingsView', () => {
         const mockConfig = {
             apiKey: 'test-api-key',
             persona: 'Expert Code Reviewer',
-            systemPrompt: 'Initial prompt'
+            systemPrompt: 'Initial prompt',
+            maxDiffLength: 10000
         };
 
         (vi.mocked(fetch) as any).mockResolvedValueOnce({
@@ -144,7 +151,7 @@ describe('SettingsView', () => {
     it('should handle custom timeout input', async () => {
         (vi.mocked(fetch) as any).mockResolvedValueOnce({
             ok: true,
-            json: async () => ({ timeout: 30000 }),
+            json: async () => ({ timeout: 30000, maxDiffLength: 10000 }),
         });
 
         render(<SettingsView />);
@@ -178,7 +185,7 @@ describe('SettingsView', () => {
     it('should show error message if save fails', async () => {
         (vi.mocked(fetch) as any).mockResolvedValueOnce({
             ok: true,
-            json: async () => ({}),
+            json: async () => ({ maxDiffLength: 10000 }),
         });
 
         render(<SettingsView />);

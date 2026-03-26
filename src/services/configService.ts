@@ -9,6 +9,7 @@ interface AIConfig {
     systemPrompt?: string;
     persona?: string;
     timeout?: number;
+    maxDiffLength?: number;
 }
 
 const PERSONA_PRESETS = {
@@ -103,6 +104,7 @@ export class ConfigService {
         const availableModels = this.config.availableModels !== undefined ? this.config.availableModels : process.env.AI_MODELS;
         const persona = this.config.persona !== undefined ? this.config.persona : process.env.AI_PERSONA;
         const timeout = this.config.timeout !== undefined ? this.config.timeout : Number(process.env.AI_TIMEOUT);
+        const maxDiffLength = this.config.maxDiffLength !== undefined ? this.config.maxDiffLength : Number(process.env.AI_MAX_DIFF_LENGTH);
 
         return {
             apiKey: apiKey,
@@ -114,6 +116,7 @@ export class ConfigService {
             systemPrompt: systemPrompt || DEFAULT_SYSTEM_PROMPT,
             persona: persona || "Expert Code Reviewer",
             timeout: timeout || 30000,
+            maxDiffLength: Math.max(10000, maxDiffLength || 10000),
         };
     }
 
@@ -161,6 +164,10 @@ export class ConfigService {
         if (newConfig.timeout !== undefined) {
             if (newConfig.timeout === 0) delete process.env.AI_TIMEOUT;
             else process.env.AI_TIMEOUT = String(newConfig.timeout);
+        }
+        if (newConfig.maxDiffLength !== undefined) {
+            if (newConfig.maxDiffLength === 0) delete process.env.AI_MAX_DIFF_LENGTH;
+            else process.env.AI_MAX_DIFF_LENGTH = String(newConfig.maxDiffLength);
         }
     }
 }

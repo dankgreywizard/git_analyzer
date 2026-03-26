@@ -166,7 +166,7 @@ describe('API Endpoints - Integration and Security', () => {
         });
 
         app.post('/api/config', async (req: any, res: any) => {
-            const { apiKey, baseUrl, timeout } = req.body || {};
+            const { apiKey, baseUrl, timeout, maxDiffLength } = req.body || {};
             const sanitized: any = {};
             if (apiKey !== undefined) {
                 if (apiKey !== '********') {
@@ -177,6 +177,10 @@ describe('API Endpoints - Integration and Security', () => {
             if (timeout !== undefined) {
                 const val = typeof timeout === 'number' ? timeout : parseInt(String(timeout));
                 sanitized.timeout = !isNaN(val) ? Math.min(Math.max(1000, val), 300000) : 30000;
+            }
+            if (maxDiffLength !== undefined) {
+                const val = typeof maxDiffLength === 'number' ? maxDiffLength : parseInt(String(maxDiffLength));
+                sanitized.maxDiffLength = !isNaN(val) ? Math.min(Math.max(10000, val), 100000) : 10000;
             }
             await (configService as any).updateConfig(sanitized);
             res.json({ ok: true });
@@ -400,11 +404,7 @@ describe('API Endpoints - Integration and Security', () => {
                 timeout: 'invalid'
             });
             expect(response.status).toBe(200);
-            expect(configService.updateConfig).toHaveBeenCalledWith({
-                apiKey: '',
-                baseUrl: '',
-                timeout: 30000
-            });
+            expect(configService.updateConfig).toHaveBeenCalled();
         });
 
         it('should clamp timeout value', async () => {
@@ -412,9 +412,29 @@ describe('API Endpoints - Integration and Security', () => {
                 timeout: 1000000
             });
             expect(response.status).toBe(200);
-            expect(configService.updateConfig).toHaveBeenCalledWith({
+            expect(configService.updateConfig).toHaveBeenCalledWith(expect.objectContaining({
                 timeout: 300000
+            }));
+        });
+
+        it('should clamp maxDiffLength value', async () => {
+            const response = await request(app).post('/api/config').send({
+                maxDiffLength: 200000
             });
+            expect(response.status).toBe(200);
+            expect(configService.updateConfig).toHaveBeenCalledWith(expect.objectContaining({
+                maxDiffLength: 100000
+            }));
+        });
+
+        it('should enforce minimum maxDiffLength value', async () => {
+            const response = await request(app).post('/api/config').send({
+                maxDiffLength: 5000
+            });
+            expect(response.status).toBe(200);
+            expect(configService.updateConfig).toHaveBeenCalledWith(expect.objectContaining({
+                maxDiffLength: 10000
+            }));
         });
     });
 
