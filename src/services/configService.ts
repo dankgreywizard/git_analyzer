@@ -42,10 +42,15 @@ const DEFAULT_SYSTEM_PROMPT = PERSONA_PRESETS["Expert Code Reviewer"];
 
 const CONFIG_FILE = path.join(process.cwd(), 'data.json');
 
+interface ConfigDoc {
+    type: 'aiConfig';
+    data: AIConfig;
+}
+
 export class ConfigService {
     private config: AIConfig = {};
     private db: loki;
-    private configCollection: Collection<AIConfig> | null = null;
+    private configCollection: Collection<ConfigDoc> | null = null;
     private initialized: Promise<void>;
     private resolveInitialized!: () => void;
 
@@ -64,14 +69,14 @@ export class ConfigService {
     }
 
     private databaseInitialize() {
-        this.configCollection = this.db.getCollection<AIConfig>('config');
+        this.configCollection = this.db.getCollection<ConfigDoc>('config');
         if (this.configCollection === null) {
-            this.configCollection = this.db.addCollection<AIConfig>('config');
+            this.configCollection = this.db.addCollection<ConfigDoc>('config');
         }
         
-        const existing = this.configCollection.findOne({ type: 'aiConfig' } as any);
+        const existing = this.configCollection.findOne({ type: 'aiConfig' });
         if (existing) {
-            this.config = (existing as any).data || {};
+            this.config = existing.data || {};
             // Update process.env with loaded config ONLY if process.env doesn't already have them
             if (this.config.apiKey && !process.env.AI_API_KEY) process.env.AI_API_KEY = this.config.apiKey;
             if (this.config.baseUrl && !process.env.AI_BASE_URL) process.env.AI_BASE_URL = this.config.baseUrl;
@@ -115,19 +120,15 @@ export class ConfigService {
     async updateConfig(newConfig: AIConfig) {
         await this.ensureInitialized();
         // Only merge properties that are actually present in newConfig
-        for (const key in newConfig) {
-            if (Object.prototype.hasOwnProperty.call(newConfig, key)) {
-                (this.config as any)[key] = (newConfig as any)[key];
-            }
-        }
+        Object.assign(this.config, newConfig);
         
         if (this.configCollection) {
-            let existing = this.configCollection.findOne({ type: 'aiConfig' } as any);
+            const existing = this.configCollection.findOne({ type: 'aiConfig' });
             if (existing) {
-                (existing as any).data = { ...this.config };
+                existing.data = { ...this.config };
                 this.configCollection.update(existing);
             } else {
-                this.configCollection.insert({ type: 'aiConfig', data: { ...this.config } } as any);
+                this.configCollection.insert({ type: 'aiConfig', data: { ...this.config } });
             }
         }
         this.db.saveDatabase();

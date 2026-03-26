@@ -12,10 +12,29 @@ export interface AIService {
     listModels(): Promise<string[]>;
 }
 
-export class OllamaAIService implements AIService {
+export abstract class BaseAIService implements AIService {
+    abstract chat(options: {
+        model: string;
+        messages: Message[];
+        stream?: boolean;
+        timeout?: number;
+    }): Promise<AsyncIterable<any> | any>;
+
+    abstract listModels(): Promise<string[]>;
+
+    protected handleError(e: any, context: string, timeout?: number): never {
+        if (e.name === 'AbortError') {
+            throw new Error(`AI request timed out after ${timeout}ms`);
+        }
+        throw new Error(`${context} API error: ${e.message || String(e)}`);
+    }
+}
+
+export class OllamaAIService extends BaseAIService {
     private client: Ollama;
 
     constructor(baseUrl?: string) {
+        super();
         this.client = new Ollama(baseUrl ? { host: baseUrl } : undefined);
     }
 
@@ -25,19 +44,21 @@ export class OllamaAIService implements AIService {
         stream?: boolean;
         timeout?: number;
     }) {
-        const chatOptions: any = {
-            ...options,
-            think: false,
-        };
-        // Ollama JS client uses fetch internally. We can try passing signals if supported, 
-        // but recent versions also support a 'timeout' property in request options.
-        if (options.timeout) {
-            chatOptions.options = {
-                ...(chatOptions.options || {}),
-                num_keep: 0, // ensure no state is kept if we timeout
+        try {
+            const chatOptions: any = {
+                ...options,
+                think: false,
             };
+            if (options.timeout) {
+                chatOptions.options = {
+                    ...(chatOptions.options || {}),
+                    num_keep: 0,
+                };
+            }
+            return await this.client.chat(chatOptions);
+        } catch (e: any) {
+            this.handleError(e, 'Ollama chat', options.timeout);
         }
-        return await this.client.chat(chatOptions);
     }
 
     async listModels(): Promise<string[]> {
@@ -57,8 +78,10 @@ export class OllamaAIService implements AIService {
     }
 }
 
-export class ExternalAIService implements AIService {
-    constructor(private apiKey: string, private baseUrl: string = 'https://api.openai.com/v1') {}
+export class ExternalAIService extends BaseAIService {
+    constructor(private apiKey: string, private baseUrl: string = 'https://api.openai.com/v1') {
+        super();
+    }
 
     async chat(options: {
         model: string;
@@ -91,7 +114,7 @@ export class ExternalAIService implements AIService {
 
             if (!response.ok) {
                 const error = await response.json().catch(() => ({}));
-                throw new Error(`External AI API error: ${response.statusText} ${JSON.stringify(error)}`);
+                throw new Error(`${response.statusText} ${JSON.stringify(error)}`);
             }
 
             if (options.stream) {
@@ -100,10 +123,7 @@ export class ExternalAIService implements AIService {
                 return await response.json();
             }
         } catch (e: any) {
-            if (e.name === 'AbortError') {
-                throw new Error(`AI request timed out after ${options.timeout}ms`);
-            }
-            throw e;
+            this.handleError(e, 'External AI', options.timeout);
         } finally {
             if (timeoutId) clearTimeout(timeoutId);
         }

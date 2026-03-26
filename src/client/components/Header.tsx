@@ -46,7 +46,6 @@ const Header: React.FC<HeaderProps> = ({
           </div>
           <div>
             <h1 className="text-xl font-bold text-gray-900">Git Review Assistant</h1>
-            <p className="text-sm text-gray-500">powered by dankgreywizard</p>
           </div>
         </div>
         <div className="flex items-center space-x-3">

@@ -43,6 +43,14 @@ export class GitService {
     return this.isUnderRepos(dir);
   }
 
+  private validatePath(dir: string): string {
+    const targetDir = this.norm(dir);
+    if (!this.isUnderRepos(targetDir)) {
+      throw new Error(`${targetDir} is outside repos base`);
+    }
+    return targetDir;
+  }
+
   // Public API
   /**
    * Clones a repository from a given URL into a target directory.
@@ -54,9 +62,7 @@ export class GitService {
   async cloneRepo(url: string, dir?: string, options?: CloneOptions): Promise<{ dir: string }> {
     if (!url) throw new Error('Missing url');
     const targetDir = this.resolveTargetDir(url, dir);
-    if (!this.isUnderRepos(targetDir)) {
-      throw new Error(`Clone failed: ${targetDir} is outside repos base`);
-    }
+    this.validatePath(targetDir);
     await this.ensureDir(targetDir);
     await git.clone({
       fs,
@@ -80,11 +86,8 @@ export class GitService {
   async openRepo(url?: string, dir?: string): Promise<{ dir: string }> {
     if (!url && !dir) throw new Error('Missing url or dir');
     const targetDir = url ? this.resolveTargetDir(url, dir) : this.norm(dir!);
+    this.validatePath(targetDir);
     
-    if (!this.isUnderRepos(targetDir)) {
-      throw new Error(`Open failed: ${targetDir} is outside repos base`);
-    }
-
     // Check if directory exists
     try {
       const stats = await fs.promises.stat(targetDir);
@@ -114,11 +117,7 @@ export class GitService {
    * @param force Optional force flag.
    */
   async checkout(dir: string, ref: string, branch?: string, force = false): Promise<{ branch: string }> {
-    const targetDir = this.norm(dir);
-    if (!this.isUnderRepos(targetDir)) {
-      throw new Error(`Checkout failed: ${targetDir} is outside repos base`);
-    }
-
+    const targetDir = this.validatePath(dir);
     const checkoutBranch = branch || `branch-${ref.slice(0, 7)}`;
 
     try {
@@ -223,6 +222,70 @@ export class GitService {
     return { commits: result };
   }
 
+  private generateSimpleDiff(filepath: string, status: 'added' | 'deleted' | 'modified', textA: string, textB: string): string {
+    let diff = '';
+    const MAX_CONTENT_LENGTH = 10000;
+    const MAX_LINES = 2000;
+
+    if (status === 'added') {
+      return `File: ${filepath} (added)\nContent:\n${textB.slice(0, MAX_CONTENT_LENGTH)}${textB.length > MAX_CONTENT_LENGTH ? '\n[... truncated ...]' : ''}`;
+    } else if (status === 'deleted') {
+      return `File: ${filepath} (deleted)\nFormer Content:\n${textA.slice(0, MAX_CONTENT_LENGTH)}${textA.length > MAX_CONTENT_LENGTH ? '\n[... truncated ...]' : ''}`;
+    }
+
+    // modified - use a very basic line-by-line comparison for the AI
+    const linesA = textA.split('\n');
+    const linesB = textB.split('\n');
+
+    if (linesA.length >= MAX_LINES || linesB.length >= MAX_LINES) {
+      diff = `File: ${filepath} (modified)\n[Content too large for detailed diff, providing new content summary]\n`;
+      return diff + textB.slice(0, 5000) + (textB.length > 5000 ? '\n...' : '');
+    }
+
+    diff = `File: ${filepath} (modified)\n--- old\n+++ new\n`;
+    let i = 0, j = 0;
+    while (i < linesA.length || j < linesB.length) {
+      if (i < linesA.length && j < linesB.length && linesA[i] === linesB[j]) {
+        diff += `  ${linesA[i]}\n`;
+        i++;
+        j++;
+      } else {
+        let lookAhead = 1;
+        let foundMatch = false;
+        while (lookAhead < 10 && (i + lookAhead < linesA.length || j + lookAhead < linesB.length)) {
+          if (i + lookAhead < linesA.length && linesA[i + lookAhead] === linesB[j]) {
+            for (let k = 0; k < lookAhead; k++) diff += `-${linesA[i + k]}\n`;
+            i += lookAhead;
+            foundMatch = true;
+            break;
+          }
+          if (j + lookAhead < linesB.length && linesA[i] === linesB[j + lookAhead]) {
+            for (let k = 0; k < lookAhead; k++) diff += `+${linesB[j + k]}\n`;
+            j += lookAhead;
+            foundMatch = true;
+            break;
+          }
+          lookAhead++;
+        }
+        if (!foundMatch) {
+          if (i < linesA.length) {
+            diff += `-${linesA[i]}\n`;
+            i++;
+          }
+          if (j < linesB.length) {
+            diff += `+${linesB[j]}\n`;
+            j++;
+          }
+        }
+      }
+      if (diff.length > MAX_CONTENT_LENGTH) {
+        diff += `\n[... diff truncated due to size ...]`;
+        break;
+      }
+    }
+    return diff;
+  }
+
   /**
    * Compares two commit OIDs and lists the files that changed between them,
    * optionally including the content diff.
@@ -231,7 +294,7 @@ export class GitService {
    * @param newOid The target commit OID.
    * @returns Array of changed files with their status and optional diff.
    */
-  async listChangedFiles(dir: string, oldOid: string | undefined, newOid: string): Promise<Array<{ path: string; status: 'added'|'modified'|'deleted'; diff?: string }>> {
+  async listChangedFiles(dir: string, oldOid: string | undefined, newOid: string): Promise<Array<{ path: string; status: 'added' | 'modified' | 'deleted'; diff?: string }>> {
     // Use isomorphic-git walk over two TREE snapshots
     const trees: any[] = [];
     const TREE: any = (git as any).TREE;
@@ -254,7 +317,7 @@ export class GitService {
         const oidA = A ? await A.oid() : undefined;
         const oidB = B ? await B.oid() : undefined;
         if (oidA === oidB) return;
-        let status: 'added'|'modified'|'deleted' = 'modified';
+        let status: 'added' | 'modified' | 'deleted' = 'modified';
         if (A && !B) status = 'deleted';
         else if (!A && B) status = 'added';
 
@@ -264,69 +327,7 @@ export class GitService {
           const contentB = B ? await B.content() : Buffer.alloc(0);
           const textA = new TextDecoder().decode(contentA);
           const textB = new TextDecoder().decode(contentB);
-          // Simplified "diff" - just show the new content if added, or simple change indicator
-          // In a real app we might use a diff library, but for AI analysis, providing 
-          // both contents or a simple representation works.
-          if (status === 'added') {
-            diff = `File: ${filepath} (added)\nContent:\n${textB.slice(0, 10000)}${textB.length > 10000 ? '\n[... truncated ...]' : ''}`;
-          } else if (status === 'deleted') {
-            diff = `File: ${filepath} (deleted)\nFormer Content:\n${textA.slice(0, 10000)}${textA.length > 10000 ? '\n[... truncated ...]' : ''}`;
-          } else {
-            // modified - use a very basic line-by-line comparison for the AI
-            const linesA = textA.split('\n');
-            const linesB = textB.split('\n');
-            
-            // Let's implement a slightly better context-aware diff for the AI
-            // if it's not too huge.
-            if (linesA.length < 2000 && linesB.length < 2000) {
-              diff = `File: ${filepath} (modified)\n--- old\n+++ new\n`;
-              
-              // Very simple diff to highlight changes for the AI
-              // This helps the AI see exactly what changed line-by-line
-              let i = 0, j = 0;
-              while (i < linesA.length || j < linesB.length) {
-                if (i < linesA.length && j < linesB.length && linesA[i] === linesB[j]) {
-                  // Context line (only show if near a change)
-                  // For now, let's show all lines if the file is small enough, 
-                  // or just the changes if we want to be more efficient.
-                  // Simplified: show everything with markers to be safe for LLM
-                  diff += `  ${linesA[i]}\n`;
-                  i++; j++;
-                } else {
-                  // Change detected
-                  let lookAhead = 1;
-                  let foundMatch = false;
-                  while (lookAhead < 10 && (i + lookAhead < linesA.length || j + lookAhead < linesB.length)) {
-                    if (i + lookAhead < linesA.length && linesA[i+lookAhead] === linesB[j]) {
-                      for(let k=0; k<lookAhead; k++) diff += `-${linesA[i+k]}\n`;
-                      i += lookAhead;
-                      foundMatch = true;
-                      break;
-                    }
-                    if (j + lookAhead < linesB.length && linesA[i] === linesB[j+lookAhead]) {
-                      for(let k=0; k<lookAhead; k++) diff += `+${linesB[j+k]}\n`;
-                      j += lookAhead;
-                      foundMatch = true;
-                      break;
-                    }
-                    lookAhead++;
-                  }
-                  if (!foundMatch) {
-                     if (i < linesA.length) { diff += `-${linesA[i]}\n`; i++; }
-                     if (j < linesB.length) { diff += `+${linesB[j]}\n`; j++; }
-                  }
-                }
-                // Cap diff size per file
-                if (diff.length > 10000) {
-                  diff += `\n[... diff truncated due to size ...]`;
-                  break;
-                }
-              }
-            } else {
-              diff = `File: ${filepath} (modified)\n[Content too large for detailed diff, providing new content summary]\n`;
-              diff += textB.slice(0, 5000) + (textB.length > 5000 ? '\n...' : '');
-            }
-          }
+          diff = this.generateSimpleDiff(filepath, status, textA, textB);
         } catch (e: any) {
           // Identify potential git limits or data-related issues
           const msg = e?.message || String(e);
@@ -352,11 +353,7 @@ export class GitService {
    * @returns The target branch after reset.
    */
   async reset(dir: string, options?: { targetBranch?: string; deleteTempBranches?: boolean }): Promise<{ branch: string }> {
-    const targetDir = this.norm(dir);
-    if (!this.isUnderRepos(targetDir)) {
-      throw new Error(`Reset failed: ${targetDir} is outside repos base`);
-    }
-
+    const targetDir = this.validatePath(dir);
     let targetBranch = options?.targetBranch;
 
     // If target branch is not provided, try to find the default branch (main, master, or via remotes)
