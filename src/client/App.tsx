@@ -53,6 +53,8 @@ export default function App() {
     gitLoading,
     analyzeCommitsWithAI,
     checkoutSelectedCommits,
+    resetRepository,
+    setGitLoading,
   } = useGit({
     commitLog,
     selectedModel,
@@ -160,6 +162,8 @@ export default function App() {
           models={models}
           analyzeCommitsWithAI={analyzeCommitsWithAI}
           checkoutSelectedCommits={checkoutSelectedCommits}
+          resetRepository={resetRepository}
+          setGitLoading={setGitLoading}
           sending={sending}
           commitLog={commitLog}
           selectedCommitOids={selectedCommitOids}

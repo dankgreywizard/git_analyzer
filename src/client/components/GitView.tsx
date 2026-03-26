@@ -17,6 +17,8 @@ interface GitViewProps {
   models: string[];
   analyzeCommitsWithAI: () => void;
   checkoutSelectedCommits: () => void;
+  resetRepository: () => void;
+  setGitLoading: (loading: boolean) => void;
   sending: boolean;
   commitLog: any[];
   selectedCommitOids: Set<string>;
@@ -62,11 +64,15 @@ const GitView: React.FC<GitViewProps> = ({
   models,
   analyzeCommitsWithAI,
   checkoutSelectedCommits,
+  resetRepository,
+  setGitLoading,
   sending,
   commitLog,
   selectedCommitOids,
   gitEntries,
 }) => {
+  const hasActiveRepo = gitEntries.some(e => (e.op === 'open' || e.op === 'clone' || e.op === 'checkout-multiple') && e.status === 'success');
+
   return (
     <div className="relative flex-1 overflow-y-auto px-6 py-6 space-y-4">
       {/* Loading overlay */}
@@ -100,7 +106,13 @@ const GitView: React.FC<GitViewProps> = ({
             }, 100);
           }
         }}
-        onBusyChange={(_v) => {}} // This is now handled by gitLoading prop but needed for API
+        onBusyChange={(v) => {
+          // Sync GitOperations' busy state with GitView's loading state
+          setGitLoading(v);
+          if (v) {
+            updateStatus?.("Loading…", "yellow");
+          }
+        }}
         disabled={gitLoading}
       />
       {/* Model selection and Analyze */}
@@ -114,18 +126,18 @@ const GitView: React.FC<GitViewProps> = ({
         <div className="flex items-center gap-2">
           <Button
             variant="secondary"
-            onClick={checkoutSelectedCommits}
-            disabled={sending || selectedCommitOids.size === 0 || gitLoading}
-            title="Checkout selected commits into local branches"
+            onClick={() => resetRepository()}
+            disabled={sending || gitLoading || !hasActiveRepo}
+            title="Reset repository to default branch and delete temporary branches"
           >
-            Checkout ({selectedCommitOids.size})
+            Reset Repo
           </Button>
           <Button
             ref={analyzeButtonRef}
             variant="primary"
-            onClick={analyzeCommitsWithAI}
+            onClick={checkoutSelectedCommits}
             disabled={sending || commitLog.length === 0 || gitLoading}
-            title="Send selected commits to AI for code review"
+            title="Checkout selected commits and send them to AI for code review"
           >
             {selectedCommitOids.size > 0
               ? `Analyze with AI (${selectedCommitOids.size} selected)`

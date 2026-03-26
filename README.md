@@ -5,12 +5,15 @@ A modern web application that combines local AI capabilities with Git repository
 ## 🚀 Features
 
 - **Git Operations**: Clone public repositories, view commit history, and **checkout multiple commits simultaneously** into their own branches.
+- **Reset Repository**: Easily restore your repository to its default branch (`main`/`master`) and clean up temporary `branch-*` branches with a single click.
 - **AI-Powered Code Review**: Support for both local LLMs (via [Ollama](https://ollama.com/)) and external AI providers (OpenAI, Anthropic, etc.) acting as an **expert code reviewer**.
-- **Detailed Diff Analysis**: Automatically generates and analyzes line-by-line diffs for each file in selected commits, explaining "how" and "why" functionality changed.
-- **Customizable AI Persona**: Choose from built-in presets (Expert Code Reviewer, Security Analyst, Refactoring Specialist) or define your own system prompt to guide the AI's analysis style and focus.
+- **Unified Analysis Flow**: A single "Analyze with AI" button that handles both general repository analysis and specific commit-level reviews (with automatic batch checkout).
+- **Detailed Diff Analysis**: Automatically generates and analyzes line-by-line diffs for each file in selected commits, with robust error handling to gracefully skip problematic files (e.g., binary or oversized files).
+- **Automated Log Fetching**: History is automatically retrieved after cloning or opening a repository, streamlining the workflow.
+- **Configurable AI Persona**: Choose from built-in presets (Expert Code Reviewer, Security Analyst, Refactoring Specialist) or define your own system prompt to guide the AI's analysis style and focus.
 - **Configurable Timeout**: Set a custom timeout for AI requests to manage latency and performance.
 - **Persistent Settings**: Uses an in-memory database (**LokiJS**) to persist AI configurations and settings across application restarts.
-- **Real-time Feedback**: Visual "AI is thinking..." indicators and detailed in-chat error reporting for a smooth experience.
+- **Real-time Feedback**: Visual "AI is thinking..." indicators, detailed in-chat error reporting, and **specific error feedback for Git operations** (Clone, Open, Log) to help diagnose connectivity or repository issues.
 - **Modern UI**: Built with React, featuring a modular architecture with custom hooks (`useGit`, `useChat`), Tailwind CSS v4, and a compact dropdown navigation menu.
 - **Security-First**: Robust input validation and path traversal protection for all Git and AI operations.
 - **Git Console**: Interactive console for monitoring Git operations in real-time.
@@ -155,12 +158,13 @@ npm start
 - **Start Frontend**: `npm run client`
 - **Build All**: `npm run build`
 - **Build CSS**: `npm run build:css`
-- **Run Tests**: `npm test` (173 tests currently passing across 24 files)
+- **Run Tests**: `npm test` (194 tests currently passing across 24 files)
 
 ### API Endpoints (Core)
 - **POST `/api/clone`**: Clone a Git repository to the server.
 - **POST `/api/checkout-commits`**: Checkout multiple commits into separate branches.
 - **POST `/api/analyze-commits`**: Send commits for AI analysis with detailed diffs.
+- **POST `/api/reset-repo`**: Reset the repository to the default branch and clean up temporary branches.
 - **GET `/api/config`**: Retrieve current AI configuration and system prompt.
 - **POST `/api/config`**: Update AI configuration and persistence.
 - **GET `/api/ollama/models`**: List available models from the configured AI service.

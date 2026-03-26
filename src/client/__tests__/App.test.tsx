@@ -198,7 +198,7 @@ describe('App', () => {
     const input = screen.getByPlaceholderText(/https:\/\/github\.com\/user\/repo\.git or \/path\/to\/repo/i);
     fireEvent.change(input, { target: { value: '/path/to/repo' } });
     await act(async () => {
-        fireEvent.click(screen.getByText('Log'));
+        fireEvent.click(screen.getByText('Open'));
     });
     
     // Toggle all

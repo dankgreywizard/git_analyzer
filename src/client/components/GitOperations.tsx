@@ -72,10 +72,15 @@ export default function GitOperations({
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Clone failed");
       pushResult({ op: "clone", status: "success", request: { url: repoUrl }, data });
-      updateStatus?.("Ready", "green");
+      updateStatus?.("Clone successful. Fetching log...", "green");
+
+      // Automatically trigger log after cloning
+      await handleLog(true);
+      updateStatus?.("Log fetched successfully", "green");
     } catch (e: any) {
-      pushResult({ op: "clone", status: "error", request: { url: repoUrl }, error: e?.message || String(e) });
-      updateStatus?.("Clone failed", "red");
+      const errorMsg = e?.message || String(e);
+      pushResult({ op: "clone", status: "error", request: { url: repoUrl }, error: errorMsg });
+      updateStatus?.(`Clone failed: ${errorMsg}`, "red");
     } finally {
       setBusy(false);
       onBusyChange?.(false);
@@ -91,27 +96,29 @@ export default function GitOperations({
     if (disabled) return;
     setBusy(true);
     onBusyChange?.(true);
-    updateStatus?.("Opening...", "yellow");
-    try {
-      // Determine if it's a URL or a path
-      let isUrl = false;
-      try { new URL(repoUrl); isUrl = true; } catch {}
-      
-      const res = await fetch("/api/open", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(isUrl ? { url: repoUrl } : { dir: repoUrl }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || "Open failed");
-      pushResult({ op: "open", status: "success", request: { url: isUrl ? repoUrl : undefined, dir: !isUrl ? repoUrl : undefined }, data });
-      updateStatus?.("Ready", "green");
-      
-      // Automatically trigger log after opening
-      await handleLog(true);
-    } catch (e: any) {
-      pushResult({ op: "open", status: "error", request: { url: repoUrl }, error: e?.message || String(e) });
-      updateStatus?.("Open failed", "red");
+      updateStatus?.("Opening repository...", "yellow");
+      try {
+        // Determine if it's a URL or a path
+        let isUrl = false;
+        try { new URL(repoUrl); isUrl = true; } catch {}
+
+        const res = await fetch("/api/open", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(isUrl ? { url: repoUrl } : { dir: repoUrl }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data?.error || "Open failed");
+        pushResult({ op: "open", status: "success", request: { url: isUrl ? repoUrl : undefined, dir: !isUrl ? repoUrl : undefined }, data });
+        updateStatus?.("Repository opened successfully. Fetching log...", "green");
+
+        // Automatically trigger log after opening
+        await handleLog(true);
+        updateStatus?.("Log fetched successfully", "green");
+      } catch (e: any) {
+      const errorMsg = e?.message || String(e);
+      pushResult({ op: "open", status: "error", request: { url: repoUrl }, error: errorMsg });
+      updateStatus?.(`Open failed: ${errorMsg}`, "red");
     } finally {
       setBusy(false);
       onBusyChange?.(false);
@@ -147,8 +154,9 @@ export default function GitOperations({
       onLogData?.(data);
       updateStatus?.("Ready", "green");
     } catch (e: any) {
-      pushResult({ op: "log", status: "error", request: { url: repoUrl, limit }, error: e?.message || String(e) });
-      updateStatus?.("Log failed", "red");
+      const errorMsg = e?.message || String(e);
+      pushResult({ op: "log", status: "error", request: { url: repoUrl, limit }, error: errorMsg });
+      updateStatus?.(`Log failed: ${errorMsg}`, "red");
     } finally {
       setBusy(false);
       onBusyChange?.(false);
@@ -201,9 +209,8 @@ export default function GitOperations({
           />
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="danger" onClick={handleClone} disabled={busy || disabled} title="Clone the specified remote repository to the server">Clone</Button>
+          <Button variant="danger" onClick={handleClone} disabled={busy || disabled} title="Clone the specified remote repository to the server and fetch its commit log">Clone</Button>
           <Button variant="primary" onClick={handleOpen} disabled={busy || disabled} title="Open the specified repository and fetch its commit log">Open</Button>
-          <Button variant="dark" onClick={() => handleLog()} disabled={busy || disabled} title="Fetch and refresh the commit log for the current repository">Log</Button>
         </div>
       </div>
 

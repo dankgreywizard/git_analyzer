@@ -16,7 +16,7 @@ describe('GitOperations', () => {
     expect(screen.getByPlaceholderText('https://github.com/user/repo.git or /path/to/repo')).toBeInTheDocument();
     expect(screen.getByText('Clone')).toBeInTheDocument();
     expect(screen.getByText('Open')).toBeInTheDocument();
-    expect(screen.getByText('Log')).toBeInTheDocument();
+    expect(screen.queryByText('Log')).not.toBeInTheDocument();
   });
 
   it('renders select button', () => {
@@ -24,10 +24,13 @@ describe('GitOperations', () => {
     expect(screen.getByText('Select...')).toBeInTheDocument();
   });
 
-  it('calls fetch when Clone is clicked', async () => {
-    (global.fetch as any).mockResolvedValue({
+  it('calls fetch when Clone is clicked and triggers log', async () => {
+    (global.fetch as any).mockResolvedValueOnce({
       ok: true,
       json: async () => ({ ok: true, dir: 'repos/test' }),
+    }).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ commits: [] }),
     });
     const updateStatus = vi.fn();
     render(<GitOperations updateStatus={updateStatus} />);
@@ -44,7 +47,9 @@ describe('GitOperations', () => {
       method: 'POST',
       body: JSON.stringify({ url: 'https://github.com/test/test.git' }),
     }));
-    expect(updateStatus).toHaveBeenCalledWith('Ready', 'green');
+    expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('/api/log?'));
+    expect(updateStatus).toHaveBeenCalledWith('Clone successful. Fetching log...', 'green');
+    expect(updateStatus).toHaveBeenCalledWith('Log fetched successfully', 'green');
   });
 
   it('calls fetch when Open is clicked', async () => {
@@ -56,7 +61,8 @@ describe('GitOperations', () => {
       json: async () => ({ commits: [] }),
     });
     
-    render(<GitOperations />);
+    const updateStatus = vi.fn();
+    render(<GitOperations updateStatus={updateStatus} />);
     const input = screen.getByPlaceholderText('https://github.com/user/repo.git or /path/to/repo');
     const openButton = screen.getByText('Open');
     
@@ -69,25 +75,11 @@ describe('GitOperations', () => {
       method: 'POST',
       body: JSON.stringify({ dir: 'repos/test' }),
     }));
+    expect(updateStatus).toHaveBeenCalledWith('Opening repository...', 'yellow');
+    expect(updateStatus).toHaveBeenCalledWith('Repository opened successfully. Fetching log...', 'green');
+    expect(updateStatus).toHaveBeenCalledWith('Log fetched successfully', 'green');
   });
 
-  it('calls fetch when Log is clicked', async () => {
-    (global.fetch as any).mockResolvedValue({
-      ok: true,
-      json: async () => ({ commits: [] }),
-    });
-    
-    render(<GitOperations />);
-    const input = screen.getByPlaceholderText('https://github.com/user/repo.git or /path/to/repo');
-    const logButton = screen.getByText('Log');
-    
-    fireEvent.change(input, { target: { value: 'repos/test' } });
-    await act(async () => {
-      fireEvent.click(logButton);
-    });
-    
-    expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('/api/log?'));
-  });
 
   it('handles limit change', async () => {
     render(<GitOperations />);
@@ -112,27 +104,28 @@ describe('GitOperations', () => {
       fireEvent.click(openButton);
     });
     
-    expect(updateStatus).toHaveBeenCalledWith('Open failed', 'red');
+    expect(updateStatus).toHaveBeenCalledWith('Open failed: Open failed', 'red');
   });
 
-  it('handles Log failure', async () => {
+  it('handles Clone failure', async () => {
     (global.fetch as any).mockResolvedValue({
       ok: false,
-      json: async () => ({ error: 'Log failed' }),
+      json: async () => ({ error: 'Clone failed: connection timeout' }),
     });
     const updateStatus = vi.fn();
     render(<GitOperations updateStatus={updateStatus} />);
     
     const input = screen.getByPlaceholderText('https://github.com/user/repo.git or /path/to/repo');
-    const logButton = screen.getByText('Log');
+    const cloneButton = screen.getByText('Clone');
     
-    fireEvent.change(input, { target: { value: 'repos/test' } });
+    fireEvent.change(input, { target: { value: 'https://github.com/test/test.git' } });
     await act(async () => {
-      fireEvent.click(logButton);
+      fireEvent.click(cloneButton);
     });
     
-    expect(updateStatus).toHaveBeenCalledWith('Log failed', 'red');
+    expect(updateStatus).toHaveBeenCalledWith('Clone failed: Clone failed: connection timeout', 'red');
   });
+
 
   it('automatically triggers log after successful open', async () => {
     (global.fetch as any).mockResolvedValue({
@@ -168,7 +161,7 @@ describe('GitOperations', () => {
       fireEvent.click(cloneButton);
     });
     
-    expect(updateStatus).toHaveBeenCalledWith('Clone failed', 'red');
+    expect(updateStatus).toHaveBeenCalledWith('Clone failed: Clone failed', 'red');
   });
 
   it('fetches and selects a local repo', async () => {
@@ -253,16 +246,6 @@ describe('GitOperations', () => {
     }));
   });
 
-  it('calls fetch when Log is clicked with a URL', async () => {
-    (global.fetch as any).mockResolvedValue({ ok: true, json: async () => ({}) });
-    render(<GitOperations />);
-    const input = screen.getByPlaceholderText('https://github.com/user/repo.git or /path/to/repo');
-    fireEvent.change(input, { target: { value: 'https://github.com/test/test.git' } });
-    await act(async () => {
-      fireEvent.click(screen.getByText('Log'));
-    });
-    expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('/api/log?url='));
-  });
 
   it('handles generic error in handlers', async () => {
     (global.fetch as any).mockRejectedValue('Generic Error');
@@ -273,6 +256,6 @@ describe('GitOperations', () => {
     await act(async () => {
       fireEvent.click(screen.getByText('Clone'));
     });
-    expect(updateStatus).toHaveBeenCalledWith('Clone failed', 'red');
+    expect(updateStatus).toHaveBeenCalledWith('Clone failed: Generic Error', 'red');
   });
 });

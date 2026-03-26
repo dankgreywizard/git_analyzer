@@ -3,6 +3,15 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import GitView from '../GitView';
 
+vi.mock('../GitOperations', () => ({
+  default: ({ onBusyChange }: any) => (
+    <div data-testid="git-operations">
+      <button onClick={() => onBusyChange(true)}>Simulate Busy</button>
+      <button onClick={() => onBusyChange(false)}>Simulate Idle</button>
+    </div>
+  )
+}));
+
 describe('GitView', () => {
   const defaultProps = {
     gitLoading: false,
@@ -16,6 +25,8 @@ describe('GitView', () => {
     models: ['codellama:latest', 'llama3'],
     analyzeCommitsWithAI: vi.fn(),
     checkoutSelectedCommits: vi.fn(),
+    resetRepository: vi.fn(),
+    setGitLoading: vi.fn(),
     sending: false,
     commitLog: [],
     selectedCommitOids: new Set<string>(),
@@ -40,12 +51,12 @@ describe('GitView', () => {
     expect(defaultProps.setSelectedModel).toHaveBeenCalledWith('llama3');
   });
 
-  it('calls analyzeCommitsWithAI when analyze button is clicked', () => {
+  it('calls checkoutSelectedCommits when analyze button is clicked', () => {
     const commitLog = [{ oid: '1', message: 'commit 1', author: { name: 'Author' }, date: '2023-01-01' }];
     render(<GitView {...defaultProps} commitLog={commitLog} />);
     const button = screen.getByText('Analyze with AI');
     fireEvent.click(button);
-    expect(defaultProps.analyzeCommitsWithAI).toHaveBeenCalled();
+    expect(defaultProps.checkoutSelectedCommits).toHaveBeenCalled();
   });
 
   it('disables analyze button when sending, gitLoading, or commitLog is empty', () => {
@@ -66,5 +77,35 @@ describe('GitView', () => {
     const selected = new Set(['1', '2']);
     render(<GitView {...defaultProps} commitLog={[{ oid: '1' }, { oid: '2' }]} selectedCommitOids={selected} />);
     expect(screen.getByText('Analyze with AI (2 selected)')).toBeInTheDocument();
+  });
+
+  it('disables Reset Repo button when no active repo', () => {
+    render(<GitView {...defaultProps} gitEntries={[]} />);
+    expect(screen.getByText('Reset Repo')).toBeDisabled();
+  });
+
+  it('enables Reset Repo button when active repo exists', () => {
+    const gitEntries = [{ op: 'open', status: 'success' }] as any;
+    render(<GitView {...defaultProps} gitEntries={gitEntries} />);
+    expect(screen.getByText('Reset Repo')).not.toBeDisabled();
+  });
+
+  it('calls resetRepository when Reset Repo button is clicked', () => {
+    const gitEntries = [{ op: 'open', status: 'success' }] as any;
+    render(<GitView {...defaultProps} gitEntries={gitEntries} />);
+    const button = screen.getByText('Reset Repo');
+    fireEvent.click(button);
+    expect(defaultProps.resetRepository).toHaveBeenCalled();
+  });
+
+  it('calls setGitLoading when onBusyChange is triggered', () => {
+    render(<GitView {...defaultProps} />);
+    
+    fireEvent.click(screen.getByText('Simulate Busy'));
+    expect(defaultProps.setGitLoading).toHaveBeenCalledWith(true);
+    expect(defaultProps.updateStatus).toHaveBeenCalledWith('Loading…', 'yellow');
+
+    fireEvent.click(screen.getByText('Simulate Idle'));
+    expect(defaultProps.setGitLoading).toHaveBeenCalledWith(false);
   });
 });

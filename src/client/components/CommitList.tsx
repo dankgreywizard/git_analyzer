@@ -21,13 +21,14 @@ function Badge({ children, tone = "gray" }: BadgeProps) {
 }
 
 function FileBadge({ status }: { status: string }) {
-  const tone = status === 'added' ? 'green' : status === 'deleted' ? 'red' : 'blue';
+  const tone = status === 'added' ? 'green' : status === 'deleted' ? 'red' : status === 'error' ? 'red' : 'blue';
   return <Badge tone={tone}>{status}</Badge>;
 }
 
 interface CommitFile {
   path: string;
   status: string;
+  diff?: string;
 }
 
 interface Commit {
@@ -46,6 +47,25 @@ interface Commit {
     };
   };
   files?: CommitFile[];
+}
+
+function FileItem({ file }: { file: CommitFile }) {
+  const isError = file.path === 'error' || (file.diff && file.diff.includes('skipped:'));
+  return (
+    <li className="text-xs flex flex-col gap-1 py-1 border-b border-gray-100 last:border-0">
+      <div className="flex items-center gap-2">
+        <FileBadge status={isError ? 'error' : file.status} />
+        <span className={`font-mono break-all ${isError ? 'text-red-600' : 'text-gray-800'}`}>
+          {file.path === 'error' ? 'Commit processing error' : file.path}
+        </span>
+      </div>
+      {isError && file.diff && (
+        <div className="text-[10px] text-red-500 bg-red-50 px-2 py-1 rounded border border-red-100 mt-1">
+          {file.diff}
+        </div>
+      )}
+    </li>
+  );
 }
 
 interface CommitListProps {
@@ -218,10 +238,7 @@ export default function CommitList({
                   {Array.isArray(c.files) && c.files.length > 0 ? (
                     <ul className="space-y-1">
                       {c.files.map((f, i) => (
-                        <li key={i} className="text-xs text-gray-800 flex items-center gap-2">
-                          <FileBadge status={f.status} />
-                          <span className="font-mono break-all">{f.path}</span>
-                        </li>
+                        <FileItem key={i} file={f} />
                       ))}
                     </ul>
                   ) : (

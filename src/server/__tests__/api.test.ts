@@ -25,6 +25,7 @@ describe('API Endpoints - Integration and Security', () => {
             listRepos: vi.fn(),
             checkout: vi.fn(),
             readLogWithFiles: vi.fn(),
+            reset: vi.fn(),
             sanitizeRepoName: vi.fn().mockImplementation(url => url.replace(/[^a-z0-9]/gi, '-')),
         };
 
@@ -81,6 +82,19 @@ describe('API Endpoints - Integration and Security', () => {
             if (baseUrl !== undefined) sanitized.baseUrl = typeof baseUrl === 'string' ? baseUrl.trim() : '';
             await (configService as any).updateConfig(sanitized);
             res.json({ ok: true });
+        });
+
+        app.post('/api/reset-repo', async (req: any, res: any) => {
+            try {
+                const { dir, deleteTempBranches } = req.body || {};
+                if (typeof dir !== 'string' || !dir.trim()) {
+                    return res.status(400).json({ error: 'Missing or invalid dir' });
+                }
+                const result = await gitServiceMock.reset(dir.trim(), { deleteTempBranches: !!deleteTempBranches });
+                res.json(result);
+            } catch (e: any) {
+                res.status(500).json({ error: e.message });
+            }
         });
     });
 
@@ -178,6 +192,28 @@ describe('API Endpoints - Integration and Security', () => {
                 apiKey: '',
                 baseUrl: ''
             });
+        });
+    });
+
+    describe('POST /api/reset-repo', () => {
+        it('should return 400 if dir is missing', async () => {
+            const response = await request(app).post('/api/reset-repo').send({});
+            expect(response.status).toBe(400);
+        });
+
+        it('should call gitService.reset and return success', async () => {
+            gitServiceMock.reset.mockResolvedValue({ branch: 'main' });
+            const response = await request(app).post('/api/reset-repo').send({ dir: 'repos/repo' });
+            expect(response.status).toBe(200);
+            expect(response.body.branch).toBe('main');
+            expect(gitServiceMock.reset).toHaveBeenCalledWith('repos/repo', { deleteTempBranches: false });
+        });
+
+        it('should handle deleteTempBranches option', async () => {
+            gitServiceMock.reset.mockResolvedValue({ branch: 'master' });
+            const response = await request(app).post('/api/reset-repo').send({ dir: 'repos/repo', deleteTempBranches: true });
+            expect(response.status).toBe(200);
+            expect(gitServiceMock.reset).toHaveBeenCalledWith('repos/repo', { deleteTempBranches: true });
         });
     });
 });
