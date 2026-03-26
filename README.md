@@ -7,7 +7,8 @@ A modern web application that combines local AI capabilities with Git repository
 - **Git Operations**: Clone public repositories, view commit history, and **checkout multiple commits simultaneously** into their own branches.
 - **AI-Powered Code Review**: Support for both local LLMs (via [Ollama](https://ollama.com/)) and external AI providers (OpenAI, Anthropic, etc.) acting as an **expert code reviewer**.
 - **Detailed Diff Analysis**: Automatically generates and analyzes line-by-line diffs for each file in selected commits, explaining "how" and "why" functionality changed.
-- **Customizable AI Persona**: Define your own system prompt/persona to guide the AI's analysis style and focus.
+- **Customizable AI Persona**: Choose from built-in presets (Expert Code Reviewer, Security Analyst, Refactoring Specialist) or define your own system prompt to guide the AI's analysis style and focus.
+- **Configurable Timeout**: Set a custom timeout for AI requests to manage latency and performance.
 - **Persistent Settings**: Uses an in-memory database (**LokiJS**) to persist AI configurations and settings across application restarts.
 - **Real-time Feedback**: Visual "AI is thinking..." indicators and detailed in-chat error reporting for a smooth experience.
 - **Modern UI**: Built with React, featuring a modular architecture with custom hooks (`useGit`, `useChat`), Tailwind CSS v4, and a compact dropdown navigation menu.
@@ -55,6 +56,8 @@ The application can be configured using environment variables:
 - `AI_BASE_URL`: Base URL for the AI provider. Defaults to 'https://api.openai.com/v1' if `AI_API_KEY` is set, otherwise defaults to Ollama's default (http://localhost:11434).
 - `AI_MODEL`: Default AI model to use (default: 'codellama:latest' for Ollama, 'gpt-4o' for OpenAI).
 - `AI_MODELS`: Comma-separated list of models to display in the UI when using an external provider.
+- `AI_PERSONA`: Default AI persona / system prompt preset (e.g., 'Expert Code Reviewer', 'Concise Reviewer').
+- `AI_TIMEOUT`: Maximum time to wait for a response from the AI provider in milliseconds (default: 30000).
 
 ## ⚙️ Installation & Setup
 

@@ -115,19 +115,23 @@ export function useChat() {
         const { role, content } = m;
         return { role, content };
       });
+      console.log("Sending chat request:", payload);
       const res = await fetch("/read", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
         signal: controller.signal,
       });
+      console.log(`Chat response status: ${res.status} ${res.statusText}`);
       if (res.ok) {
         await streamResponse(res, controller, onUpdateStatus, scrollToBottom, onSuccess);
       } else {
-        const errorMsg = res.statusText || "Request failed";
+        const errorMsg = res.statusText || `Request failed with status ${res.status}`;
+        console.error("Chat request failed:", res.status, errorMsg);
         handleError(errorMsg, controller, onUpdateStatus);
       }
     } catch (e: any) {
+      console.error("Chat request error:", e);
       handleError(e?.message || String(e), controller, onUpdateStatus);
     } finally {
       abortRef.current = null;
@@ -149,19 +153,23 @@ export function useChat() {
 
     try {
       setMessages((prev) => [...prev, { role: 'assistant', content: '' }]);
+      console.log("Sending analysis request:", payload);
       const res = await fetch('/api/analyze-commits', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
         signal: controller.signal,
       });
+      console.log(`Analysis response status: ${res.status} ${res.statusText}`);
       if (res.ok) {
         await streamResponse(res, controller, onUpdateStatus, scrollToBottom);
       } else {
-        const errorMsg = (await res.text()) || 'Analyze failed';
+        const errorMsg = (await res.text()) || `Analyze failed with status ${res.status}`;
+        console.error("Analysis request failed:", res.status, errorMsg);
         handleError(errorMsg, controller, onUpdateStatus, true);
       }
     } catch (e: any) {
+      console.error("Analysis request error:", e);
       handleError(e?.message || String(e), controller, onUpdateStatus, true);
     } finally {
       abortRef.current = null;

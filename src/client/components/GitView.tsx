@@ -116,6 +116,7 @@ const GitView: React.FC<GitViewProps> = ({
             variant="secondary"
             onClick={checkoutSelectedCommits}
             disabled={sending || selectedCommitOids.size === 0 || gitLoading}
+            title="Checkout selected commits into local branches"
           >
             Checkout ({selectedCommitOids.size})
           </Button>
@@ -124,6 +125,7 @@ const GitView: React.FC<GitViewProps> = ({
             variant="primary"
             onClick={analyzeCommitsWithAI}
             disabled={sending || commitLog.length === 0 || gitLoading}
+            title="Send selected commits to AI for code review"
           >
             {selectedCommitOids.size > 0
               ? `Analyze with AI (${selectedCommitOids.size} selected)`

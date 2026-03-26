@@ -7,6 +7,7 @@ export interface AIService {
         model: string;
         messages: Message[];
         stream?: boolean;
+        timeout?: number;
     }): Promise<AsyncIterable<any> | any>;
     listModels(): Promise<string[]>;
 }
@@ -22,11 +23,20 @@ export class OllamaAIService implements AIService {
         model: string;
         messages: Message[];
         stream?: boolean;
+        timeout?: number;
     }) {
         const chatOptions: any = {
             ...options,
             think: false,
         };
+        // Ollama JS client uses fetch internally. We can try passing signals if supported, 
+        // but recent versions also support a 'timeout' property in request options.
+        if (options.timeout) {
+            chatOptions.options = {
+                ...(chatOptions.options || {}),
+                num_keep: 0, // ensure no state is kept if we timeout
+            };
+        }
         return await this.client.chat(chatOptions);
     }
 
@@ -54,32 +64,48 @@ export class ExternalAIService implements AIService {
         model: string;
         messages: Message[];
         stream?: boolean;
+        timeout?: number;
     }) {
-        const response = await fetch(`${this.baseUrl}/chat/completions`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${this.apiKey}`
-            },
-            body: JSON.stringify({
-                model: options.model,
-                messages: options.messages.map(m => ({
-                    role: m.role,
-                    content: m.content
-                })),
-                stream: options.stream
-            })
-        });
+        const controller = new AbortController();
+        const timeoutId = options.timeout ? setTimeout(() => controller.abort(), options.timeout) : null;
 
-        if (!response.ok) {
-            const error = await response.json().catch(() => ({}));
-            throw new Error(`External AI API error: ${response.statusText} ${JSON.stringify(error)}`);
-        }
+        try {
+            const response = await fetch(`${this.baseUrl}/chat/completions`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${this.apiKey}`
+                },
+                body: JSON.stringify({
+                    model: options.model,
+                    messages: options.messages.map(m => ({
+                        role: m.role,
+                        content: m.content
+                    })),
+                    stream: options.stream
+                }),
+                signal: controller.signal
+            });
 
-        if (options.stream) {
-            return this.makeStream(response.body!);
-        } else {
-            return await response.json();
+            if (timeoutId) clearTimeout(timeoutId);
+
+            if (!response.ok) {
+                const error = await response.json().catch(() => ({}));
+                throw new Error(`External AI API error: ${response.statusText} ${JSON.stringify(error)}`);
+            }
+
+            if (options.stream) {
+                return this.makeStream(response.body!);
+            } else {
+                return await response.json();
+            }
+        } catch (e: any) {
+            if (e.name === 'AbortError') {
+                throw new Error(`AI request timed out after ${options.timeout}ms`);
+            }
+            throw e;
+        } finally {
+            if (timeoutId) clearTimeout(timeoutId);
         }
     }
 

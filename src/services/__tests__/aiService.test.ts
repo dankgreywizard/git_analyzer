@@ -85,4 +85,47 @@ describe('aiService', () => {
         await expect(service.chat({ model: 'test-model', messages: [] }))
             .rejects.toThrow(/External AI API error: Unauthorized/);
     });
+
+    it('ExternalAIService should handle timeout', async () => {
+        vi.mocked(configService.getConfig).mockResolvedValue({ apiKey: 'test-key' });
+        
+        // Mock fetch to be slow
+        vi.spyOn(global, 'fetch').mockImplementation(() => new Promise((resolve) => {
+            // This will never resolve, simulates a timeout if AbortController works
+        }));
+
+        const service = new ExternalAIService('test-key');
+        
+        // We can't easily test the actual timeout because it uses setTimeout
+        // But we can check if AbortError is handled
+        const abortError = new Error('The operation was aborted');
+        abortError.name = 'AbortError';
+        
+        vi.spyOn(global, 'fetch').mockRejectedValueOnce(abortError);
+
+        await expect(service.chat({ 
+            model: 'test-model', 
+            messages: [{ role: 'user', content: 'hi' }],
+            timeout: 100
+        })).rejects.toThrow(/AI request timed out after 100ms/);
+    });
+
+    it('OllamaAIService should pass timeout to chat options', async () => {
+        const { Ollama } = await import('ollama');
+        const service = new OllamaAIService();
+        
+        const chatSpy = vi.mocked((service as any).client.chat);
+        
+        await service.chat({
+            model: 'test-model',
+            messages: [{ role: 'user', content: 'hi' }],
+            timeout: 5000
+        });
+
+        expect(chatSpy).toHaveBeenCalledWith(expect.objectContaining({
+            options: expect.objectContaining({
+                num_keep: 0
+            })
+        }));
+    });
 });

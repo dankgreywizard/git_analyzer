@@ -12,6 +12,8 @@ describe('ConfigService', () => {
         delete process.env.AI_MODEL;
         delete process.env.AI_MODELS;
         delete process.env.AI_SYSTEM_PROMPT;
+        delete process.env.AI_PERSONA;
+        delete process.env.AI_TIMEOUT;
 
         // Reset singleton to avoid cross-test contamination
         await (singleton as any).updateConfig({
@@ -19,7 +21,9 @@ describe('ConfigService', () => {
             baseUrl: '',
             defaultModel: '',
             availableModels: '',
-            systemPrompt: ''
+            systemPrompt: '',
+            persona: '',
+            timeout: 0
         });
     });
 
@@ -74,5 +78,33 @@ describe('ConfigService', () => {
         await configService.updateConfig({ apiKey: '' });
 
         expect(process.env.AI_API_KEY).toBeUndefined();
+    });
+
+    it('should load persona and timeout from environment variables', async () => {
+        process.env.AI_PERSONA = 'Security Analyst';
+        process.env.AI_TIMEOUT = '60000';
+
+        configService = new ConfigService(':memory:');
+        const config = await configService.getConfig();
+
+        expect(config.persona).toBe('Security Analyst');
+        expect(config.timeout).toBe(60000);
+    });
+
+    it('should update and save persona and timeout', async () => {
+        configService = new ConfigService(':memory:');
+
+        const newConfig = {
+            persona: 'Refactoring Specialist',
+            timeout: 45000
+        };
+
+        await configService.updateConfig(newConfig);
+        const config = await configService.getConfig();
+
+        expect(config.persona).toBe('Refactoring Specialist');
+        expect(config.timeout).toBe(45000);
+        expect(process.env.AI_PERSONA).toBe('Refactoring Specialist');
+        expect(process.env.AI_TIMEOUT).toBe('45000');
     });
 });

@@ -72,6 +72,7 @@ const ChatView: React.FC<ChatViewProps> = ({
               className="absolute right-2 bottom-2"
               onClick={onSend}
               disabled={sending || !inputValue.trim()}
+              title="Send message"
               aria-label="Send message"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -83,6 +84,7 @@ const ChatView: React.FC<ChatViewProps> = ({
             variant="secondary"
             onClick={onCancel}
             disabled={!sending}
+            title="Cancel the current AI request"
           >
             Cancel
           </Button>
