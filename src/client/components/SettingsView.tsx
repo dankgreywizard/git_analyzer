@@ -100,7 +100,8 @@ export default function SettingsView() {
     }
 
     return (
-        <div className="max-w-2xl mx-auto p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md mt-10">
+        <div className="h-full overflow-y-auto">
+            <div className="max-w-2xl mx-auto p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md my-10">
             <div className="flex items-center mb-6 border-b pb-4 dark:border-gray-700">
                 <SettingsIcon className="w-6 h-6 mr-2 text-gray-600 dark:text-gray-300" />
                 <h2 className="text-2xl font-bold text-gray-800 dark:text-white">AI Configuration</h2>
@@ -245,5 +246,6 @@ export default function SettingsView() {
                 </div>
             </form>
         </div>
+    </div>
     );
 }

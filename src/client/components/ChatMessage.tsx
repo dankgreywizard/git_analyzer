@@ -28,7 +28,9 @@ export default function ChatMessage({ role, content, isError }: ChatMessageProps
             <span className="text-xs">AI is thinking...</span>
           </div>
         ) : (
-          <pre className="whitespace-pre-wrap break-words font-sans text-sm">{content}</pre>
+          <div className="max-h-96 overflow-y-auto pr-2 scrollbar-thin">
+            <pre className="whitespace-pre-wrap break-words font-sans text-sm">{content}</pre>
+          </div>
         )}
       </div>
     </div>

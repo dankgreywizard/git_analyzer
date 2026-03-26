@@ -583,6 +583,23 @@ video {
   --tw-bg-opacity: 1;
   background-color: rgb(156 163 175 / var(--tw-bg-opacity, 1));
 }
+/* Thin scrollbar for long messages */
+.scrollbar-thin::-webkit-scrollbar {
+    width: 4px;
+  }
+.scrollbar-thin::-webkit-scrollbar-track {
+  background-color: transparent;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  border-radius: 9999px;
+  --tw-bg-opacity: 1;
+  background-color: rgb(229 231 235 / var(--tw-bg-opacity, 1));
+  opacity: 0.5;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  --tw-bg-opacity: 1;
+  background-color: rgb(209 213 219 / var(--tw-bg-opacity, 1));
+}
 /* Input focus styles */
 #input:focus {
   border-color: transparent;
@@ -644,6 +661,10 @@ button:not(:disabled):active {
   margin-left: auto;
   margin-right: auto;
 }
+.my-10 {
+  margin-top: 2.5rem;
+  margin-bottom: 2.5rem;
+}
 .mb-1 {
   margin-bottom: 0.25rem;
 }
@@ -670,9 +691,6 @@ button:not(:disabled):active {
 }
 .mt-1 {
   margin-top: 0.25rem;
-}
-.mt-10 {
-  margin-top: 2.5rem;
 }
 .mt-2 {
   margin-top: 0.5rem;
@@ -1195,6 +1213,9 @@ button:not(:disabled):active {
 }
 .pr-14 {
   padding-right: 3.5rem;
+}
+.pr-2 {
+  padding-right: 0.5rem;
 }
 .pt-4 {
   padding-top: 1rem;

@@ -82,4 +82,26 @@ describe('ChatView', () => {
     fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: true });
     expect(onSendMock).not.toHaveBeenCalled();
   });
+
+  it('updates scrollTop when messages change', () => {
+    const { rerender } = render(
+      <ChatView {...defaultProps} messages={[]} />
+    );
+
+    const container = screen.getByTestId('chat-container') as HTMLDivElement;
+    // Mock scrollHeight and initial scrollTop
+    Object.defineProperty(container, 'scrollHeight', { value: 500, configurable: true });
+    Object.defineProperty(container, 'scrollTop', { value: 0, writable: true });
+
+    const newMessages = [{ role: 'user' as const, content: 'Hello' }];
+    rerender(<ChatView {...defaultProps} messages={newMessages} />);
+
+    expect(container.scrollTop).toBe(500);
+  });
+
+  it('has id="chat-container"', () => {
+    render(<ChatView {...defaultProps} />);
+    const container = screen.getByTestId('chat-container');
+    expect(container.id).toBe('chat-container');
+  });
 });

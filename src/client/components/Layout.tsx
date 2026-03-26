@@ -21,7 +21,7 @@ const Layout: React.FC<LayoutProps> = ({ sidebar, header, children }) => {
       {/* Main content */}
       <div className="flex flex-col flex-1 w-0 overflow-hidden">
         {header}
-        <main className="flex-1 relative overflow-y-auto focus:outline-none">
+        <main className="flex-1 relative focus:outline-none">
           {children}
         </main>
       </div>

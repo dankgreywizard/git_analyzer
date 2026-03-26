@@ -25,8 +25,22 @@ export class GitService {
    * @param config Configuration options including reposBase and defaultDepth.
    */
   constructor(config?: { reposBase?: string; defaultDepth?: number }) {
-    this.reposBase = this.norm(config?.reposBase ?? 'repos');
+    this.reposBase = this.sanitizePath(config?.reposBase ?? 'repos');
     this.defaultDepth = config?.defaultDepth ?? 25;
+  }
+
+  /**
+   * Public helper to sanitize a path.
+   */
+  public sanitizePath(p: string): string {
+    return this.norm(p);
+  }
+
+  /**
+   * Public helper to check if a path is within the repos base.
+   */
+  public isPathUnderRepos(dir: string): boolean {
+    return this.isUnderRepos(dir);
   }
 
   // Public API
@@ -436,12 +450,8 @@ export class GitService {
             result.push(part);
         }
     }
-    // Reconstruct, preserving leading slash if it was there
-    let final = result.join('/');
-    if (normalized.startsWith('/') && !final.startsWith('/')) {
-        final = '/' + final;
-    }
-    return final || '.';
+    // Reconstruct, always ensuring we return a relative path for security
+    return result.join('/') || '';
   }
 
   private async resolveRefSafe(dir: string, ref: string): Promise<string | null> {

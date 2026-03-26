@@ -27,6 +27,8 @@ describe('API Endpoints - Integration and Security', () => {
             readLogWithFiles: vi.fn(),
             reset: vi.fn(),
             sanitizeRepoName: vi.fn().mockImplementation(url => url.replace(/[^a-z0-9]/gi, '-')),
+            sanitizePath: vi.fn().mockImplementation(p => p),
+            isPathUnderRepos: vi.fn().mockReturnValue(true),
         };
 
         (GitService as any).mockImplementation(() => gitServiceMock);
@@ -38,10 +40,76 @@ describe('API Endpoints - Integration and Security', () => {
         app.post('/api/clone', async (req: any, res: any) => {
             const { url, dir } = req.body || {};
             if (typeof url !== 'string' || !url.trim()) return res.status(400).json({ error: 'Missing or invalid url' });
+
+            const trimmedUrl = url.trim();
+            const sanitizedDir = typeof dir === 'string' && dir.trim() ? gitServiceMock.sanitizePath(dir.trim()) : undefined;
+            if (sanitizedDir && !gitServiceMock.isPathUnderRepos(sanitizedDir)) {
+                return res.status(400).json({ error: 'Invalid repository directory' });
+            }
+
             try {
-                const result = await gitServiceMock.cloneRepo(url.trim(), dir);
+                const result = await gitServiceMock.cloneRepo(trimmedUrl, sanitizedDir);
                 res.json({ ok: true, dir: result.dir });
             } catch (e: any) { res.status(500).json({ error: e.message }); }
+        });
+
+        app.post('/api/open', async (req: any, res: any) => {
+            const { url, dir } = req.body || {};
+            const trimmedUrl = typeof url === 'string' ? url.trim() : undefined;
+            const trimmedDir = typeof dir === 'string' ? dir.trim() : undefined;
+            if (!trimmedUrl && !trimmedDir) {
+                return res.status(400).json({ error: 'Missing url or dir' });
+            }
+            const sanitizedDir = trimmedDir ? gitServiceMock.sanitizePath(trimmedDir) : undefined;
+            if (sanitizedDir && !gitServiceMock.isPathUnderRepos(sanitizedDir)) {
+                return res.status(400).json({ error: 'Invalid repository directory' });
+            }
+            try {
+                const result = await gitServiceMock.openRepo(trimmedUrl, sanitizedDir);
+                res.json({ ok: true, dir: result.dir });
+            } catch (e: any) { res.status(500).json({ error: e.message }); }
+        });
+
+        app.get('/api/repos', async (req: any, res: any) => {
+            const baseDir = typeof req.query.baseDir === 'string' ? req.query.baseDir.trim() : undefined;
+            if (baseDir && baseDir !== '') {
+                const sanitizedBase = gitServiceMock.sanitizePath(baseDir);
+                if (!gitServiceMock.isPathUnderRepos(sanitizedBase)) {
+                    return res.status(400).json({ error: 'Invalid baseDir' });
+                }
+            }
+            try {
+                const repos = await gitServiceMock.listRepos(baseDir || undefined);
+                res.json({ repos });
+            } catch (e: any) { res.status(500).json({ error: e.message }); }
+        });
+
+        app.get('/api/log', async (req: any, res: any) => {
+            const ref = typeof req.query.ref === 'string' ? req.query.ref.trim() : undefined;
+            if (ref && (/\s/.test(ref) || /[\x00-\x1F\x7F]/.test(ref))) {
+                return res.status(400).json({ error: 'Invalid ref' });
+            }
+            const urlParam = typeof req.query.url === 'string' ? req.query.url : undefined;
+            const dirParam = typeof req.query.dir === 'string' ? req.query.dir : '';
+            let dirToUse = '';
+            if (urlParam && urlParam.trim()) {
+                dirToUse = `repos/${gitServiceMock.sanitizeRepoName(urlParam.trim())}`;
+            } else if (dirParam && dirParam.trim()) {
+                const raw = dirParam.trim();
+                let isUrl = false;
+                try { new URL(raw); isUrl = true; } catch {}
+                dirToUse = isUrl ? `repos/${gitServiceMock.sanitizeRepoName(raw)}` : raw;
+            }
+            if (!dirToUse) return res.status(400).json({ error: 'Missing url or dir query parameter' });
+            dirToUse = gitServiceMock.sanitizePath(dirToUse);
+            if (!gitServiceMock.isPathUnderRepos(dirToUse)) {
+                return res.status(400).json({ error: 'Invalid repository path' });
+            }
+            try {
+                await gitServiceMock.openRepo(undefined, dirToUse);
+                const { commits } = await gitServiceMock.readLogWithFiles(dirToUse, { ref });
+                res.json({ commits });
+            } catch (e: any) { res.status(400).json({ error: e.message }); }
         });
 
         app.post('/api/checkout-commits', async (req: any, res: any) => {
@@ -49,19 +117,25 @@ describe('API Endpoints - Integration and Security', () => {
             if (typeof dir !== 'string' || !dir.trim() || !Array.isArray(commits) || commits.length === 0) {
                 return res.status(400).json({ error: 'Missing or invalid dir or commits array' });
             }
+
+            const sanitizedDir = gitServiceMock.sanitizePath(dir.trim());
+            if (!gitServiceMock.isPathUnderRepos(sanitizedDir)) {
+                return res.status(400).json({ error: 'Invalid repository directory' });
+            }
+
             const results = [];
             for (const oid of commits) {
                 if (typeof oid !== 'string' || !/^[0-9a-f]{7,40}$/i.test(oid)) {
                     return res.status(400).json({ error: `Invalid commit OID: ${oid}` });
                 }
-                const result = await gitServiceMock.checkout(dir.trim(), oid, `branch-${oid.slice(0,7)}`);
+                const result = await gitServiceMock.checkout(sanitizedDir, oid, `branch-${oid.slice(0,7)}`);
                 results.push({ oid, branch: result.branch });
             }
             res.json({ results });
         });
 
         app.post('/api/analyze-commits', async (req: any, res: any) => {
-            const { commits } = req.body || {};
+            const { commits, dir } = req.body || {};
             if (!Array.isArray(commits) || commits.length === 0) {
                 return res.status(400).json({ error: 'Missing or invalid commits array' });
             }
@@ -71,15 +145,39 @@ describe('API Endpoints - Integration and Security', () => {
                     return res.status(400).json({ error: `Invalid commit OID in analysis list: ${oid}` });
                 }
             }
+
+            if (dir) {
+                const normDir = gitServiceMock.sanitizePath(dir);
+                if (!gitServiceMock.isPathUnderRepos(normDir)) {
+                    return res.status(400).json({ error: 'Invalid repository directory' });
+                }
+            }
+
             res.setHeader('Content-Type', 'text/plain; charset=utf-8');
             res.end('AI Analysis result');
         });
 
+        app.get('/api/config', async (_req: any, res: any) => {
+            const config = await (configService as any).getConfig();
+            if (config.apiKey) {
+                config.apiKey = '********';
+            }
+            res.json(config);
+        });
+
         app.post('/api/config', async (req: any, res: any) => {
-            const { apiKey, baseUrl } = req.body || {};
+            const { apiKey, baseUrl, timeout } = req.body || {};
             const sanitized: any = {};
-            if (apiKey !== undefined) sanitized.apiKey = typeof apiKey === 'string' ? apiKey.trim() : '';
+            if (apiKey !== undefined) {
+                if (apiKey !== '********') {
+                    sanitized.apiKey = typeof apiKey === 'string' ? apiKey.trim() : '';
+                }
+            }
             if (baseUrl !== undefined) sanitized.baseUrl = typeof baseUrl === 'string' ? baseUrl.trim() : '';
+            if (timeout !== undefined) {
+                const val = typeof timeout === 'number' ? timeout : parseInt(String(timeout));
+                sanitized.timeout = !isNaN(val) ? Math.min(Math.max(1000, val), 300000) : 30000;
+            }
             await (configService as any).updateConfig(sanitized);
             res.json({ ok: true });
         });
@@ -90,7 +188,13 @@ describe('API Endpoints - Integration and Security', () => {
                 if (typeof dir !== 'string' || !dir.trim()) {
                     return res.status(400).json({ error: 'Missing or invalid dir' });
                 }
-                const result = await gitServiceMock.reset(dir.trim(), { deleteTempBranches: !!deleteTempBranches });
+
+                const sanitizedDir = gitServiceMock.sanitizePath(dir.trim());
+                if (!gitServiceMock.isPathUnderRepos(sanitizedDir)) {
+                    return res.status(400).json({ error: 'Invalid repository directory' });
+                }
+
+                const result = await gitServiceMock.reset(sanitizedDir, { deleteTempBranches: !!deleteTempBranches });
                 res.json(result);
             } catch (e: any) {
                 res.status(500).json({ error: e.message });
@@ -110,6 +214,13 @@ describe('API Endpoints - Integration and Security', () => {
             expect(response.status).toBe(400);
         });
 
+        it('should return 400 if dir is outside repos', async () => {
+            gitServiceMock.isPathUnderRepos.mockReturnValue(false);
+            const response = await request(app).post('/api/clone').send({ url: 'http://git.com/repo', dir: '/etc/passwd' });
+            expect(response.status).toBe(400);
+            expect(response.body.error).toContain('repository directory');
+        });
+
         it('should call gitService.cloneRepo and return success', async () => {
             gitServiceMock.cloneRepo.mockResolvedValue({ dir: 'repos/my-repo' });
             const response = await request(app).post('/api/clone').send({ url: 'http://git.com/repo' });
@@ -119,10 +230,79 @@ describe('API Endpoints - Integration and Security', () => {
         });
     });
 
+    describe('POST /api/open', () => {
+        it('should return 400 if dir is outside repos', async () => {
+            gitServiceMock.isPathUnderRepos.mockReturnValue(false);
+            const response = await request(app).post('/api/open').send({ dir: '/etc/passwd' });
+            expect(response.status).toBe(400);
+            expect(response.body.error).toContain('repository directory');
+        });
+
+        it('should return 200 if dir is valid', async () => {
+            gitServiceMock.openRepo.mockResolvedValue({ dir: 'repos/repo' });
+            const response = await request(app).post('/api/open').send({ dir: 'repos/repo' });
+            expect(response.status).toBe(200);
+            expect(response.body.dir).toBe('repos/repo');
+        });
+    });
+
+    describe('GET /api/repos', () => {
+        it('should return 400 if baseDir is outside repos', async () => {
+            gitServiceMock.isPathUnderRepos.mockReturnValue(false);
+            const response = await request(app).get('/api/repos').query({ baseDir: '/etc' });
+            expect(response.status).toBe(400);
+            expect(response.body.error).toContain('Invalid baseDir');
+        });
+
+        it('should return 200 if baseDir is valid', async () => {
+            gitServiceMock.listRepos.mockResolvedValue(['repo1', 'repo2']);
+            const response = await request(app).get('/api/repos').query({ baseDir: 'subfolder' });
+            expect(response.status).toBe(200);
+            expect(response.body.repos).toHaveLength(2);
+        });
+    });
+
+    describe('GET /api/log', () => {
+        it('should return 400 if ref is invalid', async () => {
+            const response = await request(app).get('/api/log').query({ dir: 'repos/repo', ref: 'master; rm -rf' });
+            expect(response.status).toBe(400);
+            expect(response.body.error).toContain('Invalid ref');
+        });
+
+        it('should return 400 if dir is outside repos', async () => {
+            gitServiceMock.isPathUnderRepos.mockReturnValue(false);
+            const response = await request(app).get('/api/log').query({ dir: '/etc/passwd' });
+            expect(response.status).toBe(400);
+            expect(response.body.error).toContain('Invalid repository path');
+        });
+
+        it('should return 400 if openRepo fails', async () => {
+            gitServiceMock.openRepo.mockRejectedValue(new Error('Not a git repo'));
+            const response = await request(app).get('/api/log').query({ dir: 'repos/not-a-repo' });
+            expect(response.status).toBe(400);
+            expect(response.body.error).toContain('Not a git repo');
+        });
+
+        it('should return log if path is valid', async () => {
+            gitServiceMock.openRepo.mockResolvedValue({ dir: 'repos/repo' });
+            gitServiceMock.readLogWithFiles.mockResolvedValue({ commits: [{ oid: '123' }] });
+            const response = await request(app).get('/api/log').query({ dir: 'repos/repo' });
+            expect(response.status).toBe(200);
+            expect(response.body.commits).toHaveLength(1);
+        });
+    });
+
     describe('POST /api/checkout-commits', () => {
         it('should return 400 if commits array is missing', async () => {
             const response = await request(app).post('/api/checkout-commits').send({ dir: 'repos/repo' });
             expect(response.status).toBe(400);
+        });
+
+        it('should return 400 if dir is outside repos', async () => {
+            gitServiceMock.isPathUnderRepos.mockReturnValue(false);
+            const response = await request(app).post('/api/checkout-commits').send({ dir: '/etc/passwd', commits: ['1234567'] });
+            expect(response.status).toBe(400);
+            expect(response.body.error).toContain('repository directory');
         });
 
         it('should return 400 if commit OID is invalid', async () => {
@@ -153,6 +333,16 @@ describe('API Endpoints - Integration and Security', () => {
             expect(response.status).toBe(400);
         });
 
+        it('should return 400 if dir is outside repos', async () => {
+            gitServiceMock.isPathUnderRepos.mockReturnValue(false);
+            const response = await request(app).post('/api/analyze-commits').send({
+                dir: '/etc/passwd',
+                commits: [{ oid: '1234567890abcdef1234567890abcdef12345678' }]
+            });
+            expect(response.status).toBe(400);
+            expect(response.body.error).toContain('repository directory');
+        });
+
         it('should validate OIDs within commit objects', async () => {
             const response = await request(app).post('/api/analyze-commits').send({
                 commits: [{ oid: 'invalid-oid' }]
@@ -170,6 +360,27 @@ describe('API Endpoints - Integration and Security', () => {
     });
 
     describe('POST /api/config', () => {
+        it('should mask API key on GET', async () => {
+            (configService as any).getConfig.mockResolvedValue({
+                apiKey: 'super-secret-key',
+                baseUrl: 'http://api.com'
+            });
+            const response = await request(app).get('/api/config');
+            expect(response.status).toBe(200);
+            expect(response.body.apiKey).toBe('********');
+        });
+
+        it('should not update apiKey if masked value is sent', async () => {
+            const response = await request(app).post('/api/config').send({
+                apiKey: '********',
+                baseUrl: 'http://new-api.com'
+            });
+            expect(response.status).toBe(200);
+            expect(configService.updateConfig).toHaveBeenCalledWith({
+                baseUrl: 'http://new-api.com'
+            });
+        });
+
         it('should sanitize input and update config', async () => {
             const response = await request(app).post('/api/config').send({
                 apiKey: '  secret-key  ',
@@ -185,12 +396,24 @@ describe('API Endpoints - Integration and Security', () => {
         it('should handle non-string inputs for config gracefully', async () => {
             const response = await request(app).post('/api/config').send({
                 apiKey: 123,
-                baseUrl: null
+                baseUrl: null,
+                timeout: 'invalid'
             });
             expect(response.status).toBe(200);
             expect(configService.updateConfig).toHaveBeenCalledWith({
                 apiKey: '',
-                baseUrl: ''
+                baseUrl: '',
+                timeout: 30000
+            });
+        });
+
+        it('should clamp timeout value', async () => {
+            const response = await request(app).post('/api/config').send({
+                timeout: 1000000
+            });
+            expect(response.status).toBe(200);
+            expect(configService.updateConfig).toHaveBeenCalledWith({
+                timeout: 300000
             });
         });
     });
@@ -199,6 +422,13 @@ describe('API Endpoints - Integration and Security', () => {
         it('should return 400 if dir is missing', async () => {
             const response = await request(app).post('/api/reset-repo').send({});
             expect(response.status).toBe(400);
+        });
+
+        it('should return 400 if dir is outside repos', async () => {
+            gitServiceMock.isPathUnderRepos.mockReturnValue(false);
+            const response = await request(app).post('/api/reset-repo').send({ dir: '/etc/passwd' });
+            expect(response.status).toBe(400);
+            expect(response.body.error).toContain('repository directory');
         });
 
         it('should call gitService.reset and return success', async () => {

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import Button from "./Button";
 import ChatMessage from "./ChatMessage";
 import { Message } from "../../types/chat";
@@ -24,10 +24,17 @@ const ChatView: React.FC<ChatViewProps> = ({
 }) => {
   const charCount = inputValue.length;
 
+  useEffect(() => {
+    const el = chatContainerRef.current;
+    if (el) {
+      el.scrollTop = el.scrollHeight;
+    }
+  }, [messages, chatContainerRef]);
+
   return (
-    <>
+    <div className="flex flex-col h-full overflow-hidden">
       {/* Chat container */}
-      <div ref={chatContainerRef} className="flex-1 overflow-y-auto px-6 py-6 space-y-4" data-testid="chat-container">
+      <div ref={chatContainerRef} id="chat-container" className="flex-1 overflow-y-auto px-6 py-6 space-y-4" data-testid="chat-container">
         {messages.length === 0 ? (
           <div className="text-center text-gray-500 py-12">
             <svg className="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -94,7 +101,7 @@ const ChatView: React.FC<ChatViewProps> = ({
           <span className="text-gray-400">{charCount} characters</span>
         </div>
       </div>
-    </>
+    </div>
   );
 };
 
