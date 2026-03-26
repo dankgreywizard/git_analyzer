@@ -73,9 +73,25 @@ const GitView: React.FC<GitViewProps> = ({
 }) => {
   const hasActiveRepo = gitEntries.some(e => (e.op === 'open' || e.op === 'clone' || e.op === 'checkout-multiple') && e.status === 'success');
 
+  const currentOpEntry = gitEntries[gitEntries.length - 1];
+  const currentOpText = gitLoading 
+    ? (currentOpEntry?.op === 'clone' ? 'Cloning...' 
+      : currentOpEntry?.op === 'open' ? 'Opening...' 
+      : currentOpEntry?.op === 'fetch' ? 'Fetching Repository...' 
+      : currentOpEntry?.op === 'checkout-multiple' ? 'Analyzing Commits...'
+      : 'Processing...')
+    : (currentOpEntry?.status === 'success' ? 'Success'
+      : currentOpEntry?.status === 'error' ? 'Failure'
+      : 'Idle');
+
+  const currentOpColor = gitLoading
+    ? 'text-gray-900'
+    : (currentOpEntry?.status === 'success' ? 'text-green-600'
+      : currentOpEntry?.status === 'error' ? 'text-red-600'
+      : 'text-gray-900');
+
   return (
     <div className="relative h-full flex flex-col overflow-hidden">
-      <div className="flex-1 overflow-y-auto px-6 py-6 space-y-4">
       {/* Loading overlay */}
       {gitLoading && (
         <div className="absolute inset-0 z-10 bg-white/60 backdrop-blur-[1px] flex items-center justify-center">
@@ -93,84 +109,121 @@ const GitView: React.FC<GitViewProps> = ({
           </div>
         </div>
       )}
-      <GitOperations
-        updateStatus={updateStatus}
-        onResult={(entry) => setGitEntries((prev) => [...prev, entry])}
-        onLogData={(data) => {
-          const commits = Array.isArray(data?.commits) ? data.commits : [];
-          setCommitLog(commits);
-          setSelectedCommitOids(new Set<string>());
-          // Focus analyze button after log is loaded
-          if (commits.length > 0) {
-            setTimeout(() => {
-              analyzeButtonRef.current?.focus();
-            }, 100);
-          }
-        }}
-        onBusyChange={(v) => {
-          // Sync GitOperations' busy state with GitView's loading state
-          setGitLoading(v);
-          if (v) {
-            updateStatus?.("Loading…", "yellow");
-          }
-        }}
-        disabled={gitLoading}
-      />
-      {/* Model selection and Analyze */}
-      <div className="bg-white border border-gray-200 rounded-xl p-4 flex flex-col md:flex-row md:items-end gap-3">
-        <ModelSelector
-          selectedModel={selectedModel}
-          setSelectedModel={setSelectedModel}
-          models={models}
-          disabled={gitLoading}
-        />
-        <div className="flex items-center gap-2">
-          <Button
-            variant="secondary"
-            onClick={() => resetRepository()}
-            disabled={sending || gitLoading || !hasActiveRepo}
-            title="Reset repository to default branch and delete temporary branches"
-          >
-            Reset Repo
-          </Button>
-          <Button
-            ref={analyzeButtonRef}
-            variant="primary"
-            onClick={checkoutSelectedCommits}
-            disabled={sending || commitLog.length === 0 || gitLoading}
-            title="Checkout selected commits and send them to AI for code review"
-          >
-            {selectedCommitOids.size > 0
-              ? `Analyze with AI (${selectedCommitOids.size} selected)`
-              : "Analyze with AI"}
-          </Button>
+
+      <div className="flex-1 overflow-hidden flex flex-col md:flex-row">
+        {/* Left column: Operations and Configuration */}
+        <div className="w-full md:w-80 border-r border-gray-200 bg-white overflow-y-auto p-6 space-y-6">
+          <section>
+            <h3 className="text-sm font-semibold text-gray-900 mb-4">Repository</h3>
+            <GitOperations
+              updateStatus={updateStatus}
+              onResult={(entry) => setGitEntries((prev) => [...prev, entry])}
+              onLogData={(data) => {
+                const commits = Array.isArray(data?.commits) ? data.commits : [];
+                setCommitLog(commits);
+                setSelectedCommitOids(new Set<string>());
+                // Focus analyze button after log is loaded
+                if (commits.length > 0) {
+                  setTimeout(() => {
+                    analyzeButtonRef.current?.focus();
+                  }, 100);
+                }
+              }}
+              onBusyChange={(v) => {
+                // Sync GitOperations' busy state with GitView's loading state
+                setGitLoading(v);
+                if (v) {
+                  updateStatus?.("Loading…", "yellow");
+                }
+              }}
+              disabled={gitLoading}
+            />
+          </section>
+
+          <section className="pt-6 border-t border-gray-100">
+            <h3 className="text-sm font-semibold text-gray-900 mb-4">AI Analysis Settings</h3>
+            <div className="space-y-4">
+              <ModelSelector
+                selectedModel={selectedModel}
+                setSelectedModel={setSelectedModel}
+                models={models}
+                disabled={gitLoading}
+              />
+              <div className="flex flex-col gap-2">
+                <Button
+                  ref={analyzeButtonRef}
+                  variant="primary"
+                  onClick={checkoutSelectedCommits}
+                  disabled={sending || commitLog.length === 0 || gitLoading}
+                  className="w-full"
+                  title="Checkout selected commits and send them to AI for code review"
+                >
+                  {selectedCommitOids.size > 0
+                    ? `Analyze (${selectedCommitOids.size})`
+                    : "Analyze Commits"}
+                </Button>
+                <Button
+                  variant="secondary"
+                  onClick={() => resetRepository()}
+                  disabled={sending || gitLoading || !hasActiveRepo}
+                  className="w-full"
+                  title="Reset repository to default branch and delete temporary branches"
+                >
+                  Reset Repo
+                </Button>
+              </div>
+            </div>
+          </section>
+
+          <section className="pt-6 border-t border-gray-100">
+            <h3 className="text-sm font-semibold text-gray-900 mb-4">Console</h3>
+            <GitConsole entries={gitEntries} onClear={() => setGitEntries((_prev) => [])} />
+          </section>
         </div>
-      </div>
-      <CommitList
-        commits={commitLog}
-        disabled={gitLoading}
-        selectedOids={selectedCommitOids}
-        onToggleCommit={(oid, checked) => {
-          setSelectedCommitOids((prev) => {
-            const next = new Set(prev);
-            if (checked) next.add(oid);
-            else next.delete(oid);
-            return next;
-          });
-        }}
-        onToggleAllVisible={(oids, checked) => {
-          setSelectedCommitOids((prev) => {
-            const next = new Set(prev);
-            for (const o of oids) {
-              if (!o) continue;
-              if (checked) next.add(o);
-              else next.delete(o);
-            }
-            return next;
-          });
-        }}
-      />
-      <GitConsole entries={gitEntries} onClear={() => setGitEntries((_prev) => [])} />
+
+        {/* Right column: Commit List */}
+        <div className="flex-1 bg-gray-50 overflow-y-auto p-6">
+          <div className="max-w-4xl mx-auto">
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <h3 className="text-sm font-semibold text-gray-900">Commit History</h3>
+                {commitLog.length > 0 && (
+                  <span className="text-xs text-gray-500">{commitLog.length} commits found</span>
+                )}
+              </div>
+              <div className="text-right">
+                <div className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-1">Current Status</div>
+                <div className={`text-2xl font-bold ${currentOpColor}`}>
+                  {currentOpText}
+                </div>
+              </div>
+            </div>
+            <CommitList
+              commits={commitLog}
+              disabled={gitLoading}
+              selectedOids={selectedCommitOids}
+              onToggleCommit={(oid, checked) => {
+                setSelectedCommitOids((prev) => {
+                  const next = new Set(prev);
+                  if (checked) next.add(oid);
+                  else next.delete(oid);
+                  return next;
+                });
+              }}
+              onToggleAllVisible={(oids, checked) => {
+                setSelectedCommitOids((prev) => {
+                  const next = new Set(prev);
+                  for (const o of oids) {
+                    if (!o) continue;
+                    if (checked) next.add(o);
+                    else next.delete(o);
+                  }
+                  return next;
+                });
+              }}
+            />
+          </div>
+        </div>
       </div>
     </div>
   );

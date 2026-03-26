@@ -100,14 +100,17 @@ export default function SettingsView() {
     }
 
     return (
-        <div className="h-full overflow-y-auto">
-            <div className="max-w-2xl mx-auto p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md my-10">
-            <div className="flex items-center mb-6 border-b pb-4 dark:border-gray-700">
-                <SettingsIcon className="w-6 h-6 mr-2 text-gray-600 dark:text-gray-300" />
-                <h2 className="text-2xl font-bold text-gray-800 dark:text-white">AI Configuration</h2>
-            </div>
+        <div className="h-full overflow-y-auto bg-gray-50">
+            <div className="max-w-3xl mx-auto p-8 my-8">
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
+                <div className="flex items-center mb-8 pb-4 border-b border-gray-100">
+                    <div className="p-2 bg-blue-50 rounded-lg mr-3">
+                        <SettingsIcon className="w-6 h-6 text-blue-600" />
+                    </div>
+                    <h2 className="text-2xl font-bold text-gray-900">AI Configuration</h2>
+                </div>
 
-            <form onSubmit={handleSave} className="space-y-6">
+                <form onSubmit={handleSave} className="space-y-8">
                 <div>
                     <label htmlFor="apiKey" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                         AI API Key
@@ -244,8 +247,9 @@ export default function SettingsView() {
                         Save Configuration
                     </button>
                 </div>
-            </form>
+                </form>
+            </div>
+            </div>
         </div>
-    </div>
     );
 }

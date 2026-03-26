@@ -26,7 +26,7 @@ describe('ChatHistory', () => {
   it('calls onNewChat when New button is clicked', () => {
     const handleNewChat = vi.fn();
     render(<ChatHistory chats={mockChats} onNewChat={handleNewChat} />);
-    fireEvent.click(screen.getByText('New'));
+    fireEvent.click(screen.getByTitle('Start new chat'));
     expect(handleNewChat).toHaveBeenCalled();
   });
 });

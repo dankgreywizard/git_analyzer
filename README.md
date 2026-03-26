@@ -5,18 +5,21 @@ A modern web application that combines local AI capabilities with Git repository
 ## 🚀 Features
 
 - **Git Operations**: Clone public repositories, view commit history, and **checkout multiple commits simultaneously** into their own branches.
+- **Current Status Display**: Large-text, color-coded status indicator in the Git View for immediate feedback on operations (e.g., **Green** for Success, **Red** for Failure).
 - **Reset Repository**: Easily restore your repository to its default branch (`main`/`master`) and clean up temporary `branch-*` branches with a single click.
 - **AI-Powered Code Review**: Support for both local LLMs (via [Ollama](https://ollama.com/)) and external AI providers (OpenAI, Anthropic, etc.) acting as an **expert code reviewer**.
 - **Unified Analysis Flow**: A single "Analyze with AI" button that handles both general repository analysis and specific commit-level reviews (with automatic batch checkout).
+- **Modern Navigation**: New persistent **Sidebar Navigation** for faster switching between Git, Chat, and Settings views with tooltip support.
+- **Toggleable Chat History**: Accessible via a dedicated "History" modal in the Chat header, freeing up screen space for active conversations.
 - **Detailed Diff Analysis**: Automatically generates and analyzes line-by-line diffs for each file in selected commits, with robust error handling to gracefully skip problematic files (e.g., binary or oversized files).
 - **Automated Log Fetching**: History is automatically retrieved after cloning or opening a repository, streamlining the workflow.
 - **Configurable AI Persona**: Choose from built-in presets (Expert Code Reviewer, Security Analyst, Refactoring Specialist) or define your own system prompt to guide the AI's analysis style and focus.
 - **Configurable Timeout**: Set a custom timeout for AI requests to manage latency and performance.
 - **Persistent Settings**: Uses an in-memory database (**LokiJS**) to persist AI configurations and settings across application restarts.
-- **Real-time Feedback**: Visual "AI is thinking..." indicators, detailed in-chat error reporting, and **specific error feedback for Git operations** (Clone, Open, Log) to help diagnose connectivity or repository issues.
-- **Modern UI**: Built with React, featuring a modular architecture with custom hooks (`useGit`, `useChat`), Tailwind CSS v4, and a compact dropdown navigation menu.
+- **Real-time Feedback**: Visual "AI is thinking..." indicators, detailed in-chat error reporting, and **color-coded success/failure statuses** for Git operations to help diagnose issues at a glance.
+- **Modern UI**: Built with React, featuring a modular architecture with custom hooks (`useGit`, `useChat`), Tailwind CSS v4, and a persistent **Sidebar Navigation** system with tooltips.
 - **Security-First**: Robust input validation and path traversal protection for all Git and AI operations. Centralized path sanitization in `GitService` ensures all file access remains within the repository boundaries, sensitive information (like `apiKey`) is masked in the UI, and strict validation (like `ref` validation and `timeout` clamping) is enforced at the API level.
-- **Improved Chat Experience**: Automatic scrolling to the bottom of the chat window for real-time AI responses, fixed input bar for constant access, and **dedicated scrollbars** for the chat container and individual long message results.
+- **Improved Chat Experience**: Automatic scrolling to the bottom of the chat window for real-time AI responses, fixed input bar for constant access, and **dedicated scrollbars** for the chat container and individual long message results. Replaced the permanent sidebar with a clean **History Modal**.
 - **Git Console**: Interactive console for monitoring Git operations in real-time.
 
 ## 🛠 Tech Stack
@@ -159,7 +162,7 @@ npm start
 - **Start Frontend**: `npm run client`
 - **Build All**: `npm run build`
 - **Build CSS**: `npm run build:css`
-- **Run Tests**: `npm test` (173 tests currently passing across 24 files)
+- **Run Tests**: `npm test` (216 tests currently passing across 24 files)
 
 ### API Endpoints (Core)
 - **POST `/api/clone`**: Clone a Git repository to the server.
@@ -174,7 +177,7 @@ npm start
 
 - `src/`: Core source code.
   - `client/`: React frontend (Vite entry point: `index.tsx`).
-    - `components/`: Modularized UI components including `ChatView`, `GitView`, `SettingsView`, and `Layout`.
+    - `components/`: Modularized UI components including `ChatView`, `GitView`, `SettingsView`, `SidebarNav`, `HistoryModal`, and `Layout`.
     - `hooks/`: Custom React hooks for Git (`useGit`), Chat (`useChat`), and state management.
   - `server/`: Express backend entry point and API route definitions.
   - `services/`: Shared business logic for Git, Ollama, AI Service orchestration, and Config management (LokiJS).

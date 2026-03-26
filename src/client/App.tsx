@@ -1,11 +1,13 @@
 import React, { useCallback, useRef, useState } from "react";
 import ChatHistory from "./components/ChatHistory";
+import HistoryModal from "./components/HistoryModal";
 import Header from "./components/Header";
 import ChatView from "./components/ChatView";
 import GitView from "./components/GitView";
 import SettingsView from "./components/SettingsView";
 import ChatPreviewModal from "./components/ChatPreviewModal";
 import Layout from "./components/Layout";
+import SidebarNav from "./components/SidebarNav";
 
 import { useModels } from "./hooks/useModels";
 import { useChatHistory } from "./hooks/useChatHistory";
@@ -27,6 +29,7 @@ export default function App() {
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [currentViewedChat, setCurrentViewedChat] = useState<Chat | null>(null);
+  const [historyModalOpen, setHistoryModalOpen] = useState(false);
   const chatContainerRef = useRef<HTMLDivElement | null>(null);
   const analyzeButtonRef = useRef<HTMLButtonElement | null>(null);
   const [currentTab, setCurrentTab] = useState<"chat" | "git" | "settings">("git");
@@ -99,43 +102,19 @@ export default function App() {
 
   return (
     <Layout
+      nav={
+        <SidebarNav currentTab={currentTab} setCurrentTab={setCurrentTab} />
+      }
       header={
         <Header
           currentTab={currentTab}
-          setCurrentTab={setCurrentTab}
           status={status}
           onNewChat={startNewChat}
           onToggleSidebar={() => setSidebarOpen((s) => !s)}
+          onShowHistory={() => setHistoryModalOpen(true)}
         />
       }
-      sidebar={
-        currentTab === "chat" ? (
-          <div className={`md:relative z-40 h-full ${sidebarOpen ? "block" : "hidden md:block"}`}>
-            <ChatHistory
-              chats={chatHistory}
-              currentChatId={currentChatId}
-              onSelect={(id) => {
-                if (currentChatId && id !== currentChatId) saveCurrentChat();
-                const chat = chatHistory.find((c) => c.id === id);
-                setCurrentChatId(id);
-                setMessages(chat?.messages || []);
-              }}
-              onPreview={(chat) => {
-                setCurrentViewedChat(chat);
-                setModalOpen(true);
-              }}
-              onDelete={(id) => {
-                setChatHistory((prev) => prev.filter((c) => c.id !== id));
-                if (currentChatId === id) {
-                  setCurrentChatId(null);
-                  setMessages([]);
-                }
-              }}
-              onNewChat={startNewChat}
-            />
-          </div>
-        ) : undefined
-      }
+      sidebar={undefined}
     >
       {/* Main content switcher */}
       {currentTab === "chat" && (
@@ -181,8 +160,34 @@ export default function App() {
             setMessages(currentViewedChat.messages || []);
           }
           setModalOpen(false);
+          setHistoryModalOpen(false);
         }}
         chat={currentViewedChat}
+      />
+
+      <HistoryModal
+        open={historyModalOpen}
+        onClose={() => setHistoryModalOpen(false)}
+        chats={chatHistory}
+        currentChatId={currentChatId}
+        onSelect={(id) => {
+          if (currentChatId && id !== currentChatId) saveCurrentChat();
+          const chat = chatHistory.find((c) => c.id === id);
+          setCurrentChatId(id);
+          setMessages(chat?.messages || []);
+        }}
+        onPreview={(chat) => {
+          setCurrentViewedChat(chat);
+          setModalOpen(true);
+        }}
+        onDelete={(id) => {
+          setChatHistory((prev) => prev.filter((c) => c.id !== id));
+          if (currentChatId === id) {
+            setCurrentChatId(null);
+            setMessages([]);
+          }
+        }}
+        onNewChat={startNewChat}
       />
     </Layout>
   );

@@ -23,15 +23,17 @@ export default function ChatHistory({
   onNewChat,
 }: ChatHistoryProps) {
   return (
-    <aside className={`w-64 bg-white border-r border-gray-200 flex flex-col h-full`}>
-      <div className="p-4 border-b border-gray-200 flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-gray-900">Chat History</h2>
+    <div className={`w-full bg-white flex flex-col h-full overflow-hidden`}>
+      <div className="p-4 border-b border-gray-200 flex items-center justify-between bg-gray-50/50">
+        <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wider">History</h2>
         <button
-          className="px-2 py-1 text-xs rounded-md bg-blue-600 text-white hover:bg-blue-700"
+          className="p-1.5 rounded-lg bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-blue-600 transition-colors shadow-sm"
           onClick={onNewChat}
           title="Start new chat"
         >
-          New
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+          </svg>
         </button>
       </div>
       <div className="flex-1 overflow-y-auto p-2 space-y-1">
@@ -75,6 +77,6 @@ export default function ChatHistory({
           })
         )}
       </div>
-    </aside>
+    </div>
   );
 }
