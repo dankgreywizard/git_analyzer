@@ -93,13 +93,13 @@ The application can be configured using environment variables:
 The project uses a dual-server setup for development.
 
 ### Docker Compose (Recommended)
-The easiest way to run the application with a local AI is using Docker Compose, which starts both the web application and an Ollama instance.
+The easiest way to run the application with a local AI is using Docker Compose, which starts both the web application and an Ollama instance. The `ollama` service is configured with `pull_policy: always` to ensure that the latest version of the `ollama/ollama:latest` image is checked and pulled every time the stack is started.
 
 1. **Start the application**:
    ```bash
    docker compose up -d
    ```
-   *Note: On first run, it will build the webapp image, pull the Ollama image, and automatically pull the `codellama` AI model. The Ollama service runs internally and does not conflict with any Ollama instance you might have running on your host machine.*
+   *Note: On first run, it will build the webapp image, pull the Ollama image, and automatically pull the `codellama` AI model. The Ollama service runs internally and does not conflict with any Ollama instance you might have running on your host machine. Subsequent runs will automatically check for and pull the latest `ollama/ollama` image.*
 
 2. **Wait for Model Pull**:
    The `codellama` model is pulled automatically in the background. You can monitor the progress with:
