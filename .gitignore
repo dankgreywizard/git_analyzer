@@ -18,6 +18,7 @@ Thumbs.db
 *.swo
 :memory:
 repos/
+data.json
 data.json.bak
 .output.txt
 .claude/

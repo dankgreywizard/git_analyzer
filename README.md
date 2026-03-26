@@ -130,14 +130,14 @@ docker run -p 5000:5000 \
 *Note: Ensure Ollama is configured to listen on all interfaces (OLLAMA_HOST=0.0.0.0).*
 
 #### Data Persistence (Optional)
-To persist cloned repositories and AI configuration across container restarts, mount volumes for the `/app/repos` directory and the `data.json` file:
+To persist cloned repositories and AI configuration across container restarts, mount volumes for the `/app/repos` directory and the `data.json` file. Since `data.json` is no longer tracked in Git, you should ensure it exists on your host if you wish to mount it:
 ```bash
 docker run -p 5000:5000 \
   -v $(pwd)/repos:/app/repos \
   -v $(pwd)/data.json:/app/data.json \
   webapp:latest
 ```
-Note: Ensure `data.json` exists on your host before mounting it as a file, or mount a directory if preferred.
+Note: If `data.json` does not exist on your host, the Docker daemon might create it as a directory. You can create an empty file first with `touch data.json` if needed.
 
 ### Production Build
 To create a production distribution manually:
