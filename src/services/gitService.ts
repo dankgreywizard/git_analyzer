@@ -11,6 +11,7 @@ export interface CloneOptions {
 export interface LogOptions {
   ref?: string;
   depth?: number;
+  maxDiffLength?: number;
 }
 
 /**
@@ -184,6 +185,7 @@ export class GitService {
     const normDir = this.norm(dir);
     const ref = options?.ref ?? 'HEAD';
     const depth = options?.depth ?? this.defaultDepth;
+    const maxDiffLength = options?.maxDiffLength ?? 10000;
 
     const resolved = await this.resolveRefSafe(normDir, ref);
     if (!resolved) {
@@ -200,7 +202,7 @@ export class GitService {
       const parentOid = parents[0] || undefined;
       let files: any[] = [];
       try {
-        files = parentOid ? await this.listChangedFiles(normDir, parentOid, oid) : await this.listChangedFiles(normDir, undefined, oid);
+        files = parentOid ? await this.listChangedFiles(normDir, parentOid, oid, maxDiffLength) : await this.listChangedFiles(normDir, undefined, oid, maxDiffLength);
       } catch (e: any) {
         // If the entire listing fails, we provide a descriptive error message as a dummy file entry
         // This ensures the user knows why file data is missing for this commit.
@@ -222,10 +224,10 @@ export class GitService {
     return { commits: result };
   }
 
-  private generateSimpleDiff(filepath: string, status: 'added' | 'deleted' | 'modified', textA: string, textB: string): string {
+  private generateSimpleDiff(filepath: string, status: 'added' | 'deleted' | 'modified', textA: string, textB: string, maxDiffLength = 10000): string {
     let diff = '';
-    const MAX_CONTENT_LENGTH = 10000;
-    const MAX_LINES = 2000;
+    const MAX_CONTENT_LENGTH = maxDiffLength;
+    const MAX_LINES = 10000;
 
     if (status === 'added') {
       return `File: ${filepath} (added)\nContent:\n${textB.slice(0, MAX_CONTENT_LENGTH)}${textB.length > MAX_CONTENT_LENGTH ? '\n[... truncated ...]' : ''}`;
@@ -239,7 +241,7 @@ export class GitService {
 
     if (linesA.length >= MAX_LINES || linesB.length >= MAX_LINES) {
       diff = `File: ${filepath} (modified)\n[Content too large for detailed diff, providing new content summary]\n`;
-      return diff + textB.slice(0, 5000) + (textB.length > 5000 ? '\n...' : '');
+      return diff + textB.slice(0, 20000) + (textB.length > 20000 ? '\n...' : '');
     }
 
     diff = `File: ${filepath} (modified)\n--- old\n+++ new\n`;
@@ -292,9 +294,10 @@ export class GitService {
    * @param dir The repository directory.
    * @param oldOid The base commit OID.
    * @param newOid The target commit OID.
+   * @param maxDiffLength Optional character limit for diff generation.
    * @returns Array of changed files with their status and optional diff.
    */
-  async listChangedFiles(dir: string, oldOid: string | undefined, newOid: string): Promise<Array<{ path: string; status: 'added' | 'modified' | 'deleted'; diff?: string }>> {
+  async listChangedFiles(dir: string, oldOid: string | undefined, newOid: string, maxDiffLength = 10000): Promise<Array<{ path: string; status: 'added' | 'modified' | 'deleted'; diff?: string }>> {
     // Use isomorphic-git walk over two TREE snapshots
     const trees: any[] = [];
     const TREE: any = (git as any).TREE;
@@ -327,7 +330,7 @@ export class GitService {
           const contentB = B ? await B.content() : Buffer.alloc(0);
           const textA = new TextDecoder().decode(contentA);
           const textB = new TextDecoder().decode(contentB);
-          diff = this.generateSimpleDiff(filepath, status, textA, textB);
+          diff = this.generateSimpleDiff(filepath, status, textA, textB, maxDiffLength);
         } catch (e: any) {
           // Identify potential git limits or data-related issues
           const msg = e?.message || String(e);

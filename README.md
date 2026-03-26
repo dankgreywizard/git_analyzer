@@ -12,13 +12,15 @@ A modern web application that combines local AI capabilities with Git repository
 - **Modern Navigation**: New persistent **Sidebar Navigation** for faster switching between Git, Chat, and Settings views with tooltip support.
 - **Toggleable Chat History**: Accessible via a dedicated "History" modal in the Chat header, freeing up screen space for active conversations.
 - **Detailed Diff Analysis**: Automatically generates and analyzes line-by-line diffs for each file in selected commits, with robust error handling to gracefully skip problematic files (e.g., binary or oversized files).
+- **Inline File Diffs**: View file changes directly in the commit history by clicking on the file status icon. Supports syntax-highlighted (dark mode) scrollable diff views.
+- **Configurable Diff Limits**: Adjust the maximum character limit for file diffs (from 10,000 to 100,000) in the settings to handle larger files.
 - **Automated Log Fetching**: History is automatically retrieved after cloning or opening a repository, streamlining the workflow.
 - **Configurable AI Persona**: Choose from built-in presets (Expert Code Reviewer, Security Analyst, Refactoring Specialist) or define your own system prompt to guide the AI's analysis style and focus.
 - **Configurable Timeout**: Set a custom timeout for AI requests to manage latency and performance.
 - **Persistent Settings**: Uses an in-memory database (**LokiJS**) to persist AI configurations and settings across application restarts.
 - **Real-time Feedback**: Visual "AI is thinking..." indicators, detailed in-chat error reporting, and **color-coded success/failure statuses** for Git operations to help diagnose issues at a glance.
 - **Modern UI**: Built with React, featuring a modular architecture with custom hooks (`useGit`, `useChat`), Tailwind CSS v4, and a persistent **Sidebar Navigation** system with tooltips.
-- **Security-First**: Robust input validation and path traversal protection for all Git and AI operations. Centralized path sanitization in `GitService` ensures all file access remains within the repository boundaries, sensitive information (like `apiKey`) is masked in the UI, and strict validation (like `ref` validation and `timeout` clamping) is enforced at the API level.
+- **Security-First**: Robust input validation and path traversal protection for all Git and AI operations. Centralized path sanitization in `GitService` ensures all file access remains within the repository boundaries, sensitive information (like `apiKey`) is masked in the UI, and strict validation (like `ref` validation, `timeout` clamping, and `maxDiffLength` enforcement) is applied at the API level.
 - **Improved Chat Experience**: Automatic scrolling to the bottom of the chat window for real-time AI responses, fixed input bar for constant access, and **dedicated scrollbars** for the chat container and individual long message results. Replaced the permanent sidebar with a clean **History Modal**.
 - **Git Console**: Interactive console for monitoring Git operations in real-time.
 
@@ -65,6 +67,7 @@ The application can be configured using environment variables:
 - `AI_MODELS`: Comma-separated list of models to display in the UI when using an external provider.
 - `AI_PERSONA`: Default AI persona / system prompt preset (e.g., 'Expert Code Reviewer', 'Concise Reviewer').
 - `AI_TIMEOUT`: Maximum time to wait for a response from the AI provider in milliseconds (default: 30000).
+- `AI_MAX_DIFF_LENGTH`: Maximum character limit for file diffs in the commit history (default: 10000, max: 100000).
 
 ## ⚙️ Installation & Setup
 
@@ -162,15 +165,15 @@ npm start
 - **Start Frontend**: `npm run client`
 - **Build All**: `npm run build`
 - **Build CSS**: `npm run build:css`
-- **Run Tests**: `npm test` (216 tests currently passing across 24 files)
+- **Run Tests**: `npm test` (222 tests currently passing across 24 files)
 
 ### API Endpoints (Core)
 - **POST `/api/clone`**: Clone a Git repository to the server.
 - **POST `/api/checkout-commits`**: Checkout multiple commits into separate branches.
 - **POST `/api/analyze-commits`**: Send commits for AI analysis with detailed diffs.
 - **POST `/api/reset-repo`**: Reset the repository to the default branch and clean up temporary branches.
-- **GET `/api/config`**: Retrieve current AI configuration and system prompt.
-- **POST `/api/config`**: Update AI configuration and persistence.
+- **GET `/api/config`**: Retrieve current AI configuration, system prompt, and diff limits.
+- **POST `/api/config`**: Update AI configuration, timeout, and diff limits.
 - **GET `/api/ollama/models`**: List available models from the configured AI service.
 
 ## 📂 Project Structure

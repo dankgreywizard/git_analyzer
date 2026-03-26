@@ -50,17 +50,30 @@ interface Commit {
 }
 
 function FileItem({ file }: { file: CommitFile }) {
+  const [showDiff, setShowDiff] = useState(false);
   const isError = file.path === 'error' || (file.diff && file.diff.includes('skipped:'));
   return (
     <li className="text-xs flex flex-col gap-1 py-1 border-b border-gray-100 last:border-0">
       <div className="flex items-center gap-2">
-        <FileBadge status={isError ? 'error' : file.status} />
+        <button
+          onClick={() => file.diff && setShowDiff(!showDiff)}
+          disabled={!file.diff}
+          className={`${file.diff ? 'hover:scale-110 active:scale-95 transition-transform' : 'cursor-default'}`}
+          title={file.diff ? (showDiff ? 'Hide diff' : 'Show diff') : undefined}
+        >
+          <FileBadge status={isError ? 'error' : file.status} />
+        </button>
         <span className={`font-mono break-all ${isError ? 'text-red-600' : 'text-gray-800'}`}>
           {file.path === 'error' ? 'Commit processing error' : file.path}
         </span>
       </div>
-      {isError && file.diff && (
+      {isError && file.diff && !showDiff && (
         <div className="text-[10px] text-red-500 bg-red-50 px-2 py-1 rounded border border-red-100 mt-1">
+          {file.diff}
+        </div>
+      )}
+      {showDiff && file.diff && (
+        <div className="mt-2 bg-gray-900 text-gray-100 p-2 rounded-md overflow-x-auto text-[10px] font-mono leading-tight whitespace-pre max-h-[400px] overflow-y-auto">
           {file.diff}
         </div>
       )}

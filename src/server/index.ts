@@ -194,7 +194,8 @@ expressApp.get('/api/log', async (req, res) => {
         }
 
         // Enhanced: include changed files per commit
-        const { commits, note } = await gitService.readLogWithFiles(dirToUse, { depth, ref });
+        const config = await configService.getConfig();
+        const { commits, note } = await gitService.readLogWithFiles(dirToUse, { depth, ref, maxDiffLength: config.maxDiffLength });
         res.json({ commits, ...(note ? { note } : {}) });
     } catch (e: any) {
         console.error('Read log failed', e);
@@ -331,7 +332,7 @@ expressApp.get('/api/config', async (_req, res) => {
 // Update AI configuration
 expressApp.post('/api/config', async (req, res) => {
     try {
-        const { apiKey, baseUrl, defaultModel, availableModels, systemPrompt, persona, timeout } = req.body || {};
+        const { apiKey, baseUrl, defaultModel, availableModels, systemPrompt, persona, timeout, maxDiffLength } = req.body || {};
         
         // Basic type validation for settings
         const sanitized: any = {};
@@ -349,6 +350,10 @@ expressApp.post('/api/config', async (req, res) => {
         if (timeout !== undefined) {
             const val = typeof timeout === 'number' ? timeout : parseInt(String(timeout));
             sanitized.timeout = !isNaN(val) ? Math.min(Math.max(1000, val), 300000) : 30000;
+        }
+        if (maxDiffLength !== undefined) {
+            const val = typeof maxDiffLength === 'number' ? maxDiffLength : parseInt(String(maxDiffLength));
+            sanitized.maxDiffLength = !isNaN(val) ? Math.min(Math.max(10000, val), 100000) : 10000;
         }
 
         await configService.updateConfig(sanitized);

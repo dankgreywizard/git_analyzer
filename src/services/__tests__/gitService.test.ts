@@ -296,6 +296,27 @@ describe('GitService', () => {
       expect(result[2].path).toBe('file4');
       expect(result[2].status).toBe('deleted');
     });
+
+    it('should truncate diff if maxDiffLength is exceeded', async () => {
+      const longContent = 'A'.repeat(200);
+      (git as any).walk = vi.fn().mockImplementation(async (options) => {
+        const {map} = options;
+        const result = await map('file', [null, {
+          type: async () => 'blob',
+          oid: async () => 'oid2',
+          content: async () => Buffer.from(longContent)
+        }]);
+        return [result];
+      });
+      (git as any).TREE = vi.fn().mockReturnValue({});
+
+      const maxDiffLength = 50;
+      const result = await gitService.listChangedFiles('test-repos/repo1', undefined, 'new', maxDiffLength);
+      expect(result[0].diff).toContain('[... truncated ...]');
+      // The diff includes header text, so we check if the content part is truncated
+      const contentPart = result[0].diff?.split('Content:\n')[1];
+      expect(contentPart?.length).toBeLessThanOrEqual(maxDiffLength + '[... truncated ...]'.length + 1);
+    });
   });
 
   describe('reset', () => {

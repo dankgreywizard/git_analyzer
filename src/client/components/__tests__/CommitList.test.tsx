@@ -128,4 +128,56 @@ describe('CommitList', () => {
     // When pageSize is 0, visible list is empty.
     expect(screen.getByText('Commits')).toBeInTheDocument();
   });
+
+  it('toggles file diff when clicking on the file badge', () => {
+    const commitWithDiff = [
+      {
+        oid: 'diff-oid',
+        message: 'feat: add diff support',
+        author: { name: 'Dev', timestamp: 1672531200 },
+        files: [{ path: 'src/main.ts', status: 'added', diff: '@@ -0,0 +1,1 @@\n+console.log("hello");' }]
+      }
+    ];
+    render(<CommitList commits={commitWithDiff} />);
+    
+    // Open details first
+    fireEvent.click(screen.getByText('Show details'));
+    
+    // Find the file badge/icon (it's inside a button)
+    const badge = screen.getByText('added');
+    const badgeButton = badge.closest('button');
+    expect(badgeButton).toBeInTheDocument();
+    
+    // Initially diff should not be visible
+    expect(screen.queryByText('+console.log("hello");')).not.toBeInTheDocument();
+    
+    // Click to show diff
+    fireEvent.click(badgeButton!);
+    expect(screen.getByText((content) => content.includes('+console.log("hello");'))).toBeInTheDocument();
+    
+    // Click to hide diff
+    fireEvent.click(badgeButton!);
+    expect(screen.queryByText((content) => content.includes('+console.log("hello");'))).not.toBeInTheDocument();
+  });
+
+  it('renders large diffs with scrollable container', () => {
+    const largeDiff = 'line\n'.repeat(100);
+    const commitWithLargeDiff = [
+      {
+        oid: 'large-diff-oid',
+        message: 'feat: add large diff',
+        author: { name: 'Dev', timestamp: 1672531200 },
+        files: [{ path: 'large.txt', status: 'modified', diff: largeDiff }]
+      }
+    ];
+    render(<CommitList commits={commitWithLargeDiff} />);
+    
+    fireEvent.click(screen.getByText('Show details'));
+    const badge = screen.getByText('modified');
+    fireEvent.click(badge.closest('button')!);
+    
+    const diffContainer = screen.getByText(/line/, { exact: false }).closest('div');
+    expect(diffContainer).toHaveClass('max-h-[400px]');
+    expect(diffContainer).toHaveClass('overflow-y-auto');
+  });
 });

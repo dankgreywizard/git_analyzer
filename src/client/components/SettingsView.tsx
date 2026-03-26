@@ -9,6 +9,7 @@ interface AIConfig {
     systemPrompt?: string;
     persona?: string;
     timeout?: number;
+    maxDiffLength?: number;
 }
 
 const PERSONA_PRESETS: Record<string, string> = {
@@ -170,6 +171,36 @@ export default function SettingsView() {
                     />
                     <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                         Maximum time to wait for a response from the AI provider.
+                    </p>
+                </div>
+
+                <div>
+                    <label htmlFor="maxDiffLength" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Max Diff Character Limit (min 10,000, max 100,000)
+                    </label>
+                    <input
+                        id="maxDiffLength"
+                        type="number"
+                        min={10000}
+                        max={100000}
+                        required
+                        className="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                        placeholder="10000"
+                        value={config.maxDiffLength || ''}
+                        onChange={(e) => {
+                            const rawValue = e.target.value;
+                            if (rawValue === '') {
+                                setConfig({ ...config, maxDiffLength: undefined });
+                                return;
+                            }
+                            let val = parseInt(rawValue);
+                            if (isNaN(val)) return;
+                            if (val > 100000) val = 100000;
+                            setConfig({ ...config, maxDiffLength: val });
+                        }}
+                    />
+                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                        Maximum number of characters to include in a file diff. Larger diffs will be truncated.
                     </p>
                 </div>
 

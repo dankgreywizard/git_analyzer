@@ -778,6 +778,9 @@ button:not(:disabled):active {
 .max-h-96 {
   max-height: 24rem;
 }
+.max-h-\[400px\] {
+  max-height: 400px;
+}
 .max-h-\[60vh\] {
   max-height: 60vh;
 }
@@ -872,6 +875,9 @@ button:not(:disabled):active {
 }
 .animate-spin {
   animation: spin 1s linear infinite;
+}
+.cursor-default {
+  cursor: default;
 }
 .cursor-not-allowed {
   cursor: not-allowed;
@@ -976,6 +982,9 @@ button:not(:disabled):active {
 .overflow-hidden {
   overflow: hidden;
 }
+.overflow-x-auto {
+  overflow-x: auto;
+}
 .overflow-y-auto {
   overflow-y: auto;
 }
@@ -986,6 +995,9 @@ button:not(:disabled):active {
 }
 .whitespace-nowrap {
   white-space: nowrap;
+}
+.whitespace-pre {
+  white-space: pre;
 }
 .whitespace-pre-wrap {
   white-space: pre-wrap;
@@ -1349,6 +1361,9 @@ button:not(:disabled):active {
   --tw-numeric-spacing: tabular-nums;
   font-variant-numeric: var(--tw-ordinal) var(--tw-slashed-zero) var(--tw-numeric-figure) var(--tw-numeric-spacing) var(--tw-numeric-fraction);
 }
+.leading-tight {
+  line-height: 1.25;
+}
 .tracking-wide {
   letter-spacing: 0.025em;
 }
@@ -1366,6 +1381,10 @@ button:not(:disabled):active {
 .text-blue-700 {
   --tw-text-opacity: 1;
   color: rgb(29 78 216 / var(--tw-text-opacity, 1));
+}
+.text-gray-100 {
+  --tw-text-opacity: 1;
+  color: rgb(243 244 246 / var(--tw-text-opacity, 1));
 }
 .text-gray-300 {
   --tw-text-opacity: 1;
@@ -1487,6 +1506,11 @@ button:not(:disabled):active {
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 150ms;
 }
+.transition-transform {
+  transition-property: transform;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
 .duration-200 {
   transition-duration: 200ms;
 }
@@ -1526,6 +1550,12 @@ button:not(:disabled):active {
 
 .last\:border-0:last-child {
   border-width: 0px;
+}
+
+.hover\:scale-110:hover {
+  --tw-scale-x: 1.1;
+  --tw-scale-y: 1.1;
+  transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
 }
 
 .hover\:border-blue-300:hover {
@@ -1616,6 +1646,12 @@ button:not(:disabled):active {
 .focus\:ring-blue-500:focus {
   --tw-ring-opacity: 1;
   --tw-ring-color: rgb(59 130 246 / var(--tw-ring-opacity, 1));
+}
+
+.active\:scale-95:active {
+  --tw-scale-x: .95;
+  --tw-scale-y: .95;
+  transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
 }
 
 .disabled\:cursor-not-allowed:disabled {
