@@ -14,7 +14,6 @@ describe('Header', () => {
 
   it('renders correctly in chat tab', () => {
     render(<Header {...defaultProps} />);
-    expect(screen.getByText('Git Review Assistant')).toBeInTheDocument();
     expect(screen.getByText('New Chat')).toBeInTheDocument();
     expect(screen.getByText('Ready')).toBeInTheDocument();
     expect(screen.getByText('chat')).toBeInTheDocument();
@@ -26,24 +25,6 @@ describe('Header', () => {
     expect(screen.getByText('git')).toBeInTheDocument();
   });
 
-  it('calls setCurrentTab when menu items are clicked', async () => {
-    render(<Header {...defaultProps} />);
-    
-    // Open menu
-    fireEvent.click(screen.getByText('chat'));
-    
-    // Click Git option
-    fireEvent.click(screen.getByText('Git'));
-    expect(defaultProps.setCurrentTab).toHaveBeenCalledWith('git');
-    
-    // Open menu again
-    fireEvent.click(screen.getByText('chat'));
-    
-    // Click Settings option
-    fireEvent.click(screen.getByText('Settings'));
-    expect(defaultProps.setCurrentTab).toHaveBeenCalledWith('settings');
-  });
-
   it('calls onNewChat when "New Chat" button is clicked', () => {
     render(<Header {...defaultProps} />);
     fireEvent.click(screen.getByText('New Chat'));
@@ -53,8 +34,7 @@ describe('Header', () => {
   it('calls onToggleSidebar when sidebar button is clicked', () => {
     render(<Header {...defaultProps} />);
     // The sidebar toggle is only visible on small screens (md:hidden)
-    // But testing-library should still find it
-    const toggleButton = screen.getByTitle('Toggle chat history');
+    const toggleButton = screen.getByTitle('Toggle menu');
     fireEvent.click(toggleButton);
     expect(defaultProps.onToggleSidebar).toHaveBeenCalled();
   });

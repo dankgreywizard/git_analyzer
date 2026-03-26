@@ -8,37 +8,25 @@ global.fetch = vi.fn();
 
 describe('App', () => {
   const switchToTab = async (tabName: 'Git' | 'Chat' | 'Settings') => {
-    // Open the dropdown menu
+    const label = tabName === 'Git' ? 'Git Operations' : tabName === 'Chat' ? 'AI Chat' : 'Settings';
     const buttons = await screen.findAllByRole('button');
-    // The menu button has the current tab name as text
-    const menuButton = buttons.find(b => 
-      ['git', 'chat', 'settings', 'repository'].includes(b.textContent?.toLowerCase().trim() || '') &&
-      b.querySelector('svg') // It has a chevron icon
-    );
+    const navButton = buttons.find(b => b.textContent?.includes(label) || b.getAttribute('aria-label') === label);
     
-    if (menuButton) {
+    if (navButton) {
       await act(async () => {
-        fireEvent.click(menuButton);
+        fireEvent.click(navButton);
       });
     } else {
-      // Fallback if we can't find it by text content precisely
+      // Fallback: search for buttons and try to find one by label in spans
       const allButtons = screen.getAllByRole('button');
-      // Look for the one with the chevron (SVG with rotate-180 or similar)
-      const chevronButton = allButtons.find(b => b.querySelector('svg'));
-      if (chevronButton) {
-        await act(async () => {
-          fireEvent.click(chevronButton);
-        });
+      for (const btn of allButtons) {
+        if (btn.textContent?.includes(label)) {
+          await act(async () => {
+            fireEvent.click(btn);
+          });
+          break;
+        }
       }
-    }
-    
-    // Find the option in the dropdown - we use getAllByRole('button') again after it opens
-    const options = await screen.findAllByRole('button');
-    const option = options.find(o => o.textContent?.trim().toLowerCase() === tabName.toLowerCase());
-    if (option) {
-      await act(async () => {
-        fireEvent.click(option);
-      });
     }
     
     await act(async () => {});
@@ -65,16 +53,16 @@ describe('App', () => {
     Object.defineProperty(window, 'localStorage', { value: localStorageMock });
   });
 
-  it('renders the main application layout', () => {
+  it('renders correctly', () => {
     render(<App />);
-    expect(screen.getByText('Git Review Assistant')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /git/i })).toBeInTheDocument();
   });
 
   it('toggles between Chat and Git tabs', async () => {
     render(<App />);
     
     // Default is Git tab now
-    expect(screen.getByText('Repository URL or Local Path')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/Repo URL or \/path\/to\/repo/i)).toBeInTheDocument();
 
     // Switch to Chat
     await switchToTab('Chat');
@@ -82,7 +70,7 @@ describe('App', () => {
     
     // Switch back to Git
     await switchToTab('Git');
-    expect(screen.getByText('Repository URL or Local Path')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/Repo URL or \/path\/to\/repo/i)).toBeInTheDocument();
   });
 
   it('can start a new chat', async () => {
@@ -136,7 +124,7 @@ describe('App', () => {
   it('handles Git operations results', async () => {
     render(<App />);
     // Default is Git tab now
-    expect(screen.getByText('Clone')).toBeInTheDocument();
+    expect(screen.getByText('Open Repo')).toBeInTheDocument();
   });
 
   it('handles AI analysis of commits', async () => {
@@ -163,7 +151,7 @@ describe('App', () => {
     
     // We need some commits in the state to enable the analyze button
     // Actually, let's just test that it's there.
-    expect(screen.getByText(/Analyze with AI/)).toBeInTheDocument();
+    expect(screen.getByText(/Analyze Commits/)).toBeInTheDocument();
   });
 
   it('can select and delete a chat from history', async () => {
@@ -173,11 +161,16 @@ describe('App', () => {
     render(<App />);
     await switchToTab('Chat');
     
+    // Open History Modal
+    fireEvent.click(screen.getByTitle('View past conversations'));
+    
     expect(await screen.findByText('Chat 1')).toBeInTheDocument();
     
     fireEvent.click(screen.getByText('Chat 1'));
     expect(await screen.findByText('Chat 1', { selector: 'pre' })).toBeInTheDocument();
     
+    // Re-open History Modal to delete
+    fireEvent.click(screen.getByTitle('View past conversations'));
     fireEvent.click(screen.getByTitle('Delete'));
     expect(screen.queryByText('Chat 1')).not.toBeInTheDocument();
   });
@@ -195,10 +188,10 @@ describe('App', () => {
     });
     
     // Fill the log
-    const input = screen.getByPlaceholderText(/https:\/\/github\.com\/user\/repo\.git or \/path\/to\/repo/i);
+    const input = screen.getByPlaceholderText(/Repo URL or \/path\/to\/repo/i);
     fireEvent.change(input, { target: { value: '/path/to/repo' } });
     await act(async () => {
-        fireEvent.click(screen.getByText('Open'));
+        fireEvent.click(screen.getByText('Open Repo'));
     });
     
     // Toggle all
@@ -207,13 +200,13 @@ describe('App', () => {
         fireEvent.click(selectAll);
     });
     
-    expect(screen.getByText('Analyze with AI (2 selected)')).toBeInTheDocument();
+    expect(screen.getByText('Analyze (2)')).toBeInTheDocument();
     
     // Untoggle all
     await act(async () => {
         fireEvent.click(selectAll);
     });
-    expect(screen.getByText('Analyze with AI')).toBeInTheDocument();
+    expect(screen.getByText('Analyze Commits')).toBeInTheDocument();
   });
 
   it('can preview a chat in a modal', async () => {
@@ -223,16 +216,19 @@ describe('App', () => {
     render(<App />);
     await switchToTab('Chat');
     
+    // Open History Modal
+    fireEvent.click(screen.getByTitle('View past conversations'));
+    
     await act(async () => {
         fireEvent.click(await screen.findByText('View'));
     });
-    expect(screen.getByRole('heading', { name: 'Chat History', level: 3 })).toBeInTheDocument(); // Modal title
+    expect(screen.getByRole('heading', { name: 'Past Conversations', level: 3 })).toBeInTheDocument(); // History Modal title
     expect(screen.getByText('Chat 1', { selector: '.whitespace-pre-wrap' })).toBeInTheDocument();
     
     await act(async () => {
         fireEvent.click(screen.getByText('Continue Chat'));
     });
-    expect(screen.queryByRole('heading', { name: 'Chat History', level: 3 })).not.toBeInTheDocument(); // Modal closed
+    expect(screen.queryByRole('heading', { name: 'Past Conversations', level: 3 })).not.toBeInTheDocument(); // Modal closed
   });
 
   it('handles canceling a message stream', async () => {
@@ -283,6 +279,9 @@ describe('App', () => {
     });
     
     expect(screen.queryByText('message to save', { selector: 'pre' })).not.toBeInTheDocument();
+    
+    // Open History Modal to see it
+    fireEvent.click(screen.getByTitle('View past conversations'));
     expect(screen.getByText('message to save', { selector: 'button' })).toBeInTheDocument(); // in history
   });
 
@@ -304,7 +303,7 @@ describe('App', () => {
   it('toggles sidebar on mobile', async () => {
     render(<App />);
     await switchToTab('Chat');
-    const toggleButton = screen.getByTitle('Toggle chat history');
+    const toggleButton = screen.getByTitle('Toggle menu');
     fireEvent.click(toggleButton);
     // Since we're using JSDOM, we just check it doesn't crash and the state updates
     expect(toggleButton).toBeInTheDocument();
@@ -340,12 +339,17 @@ describe('App', () => {
     render(<App />);
     await switchToTab('Chat');
     
+    // Open History Modal
+    fireEvent.click(screen.getByTitle('View past conversations'));
+    
     // Select Chat 1
     fireEvent.click(await screen.findByText('Chat 1'));
     // Now currentChatId is '1', but we didn't add any NEW messages in this session yet? 
     // Wait, the state `messages` is loaded from history.
     
     // Select Chat 2. Since we didn't change anything, it should just switch.
+    // Re-open History Modal
+    fireEvent.click(screen.getByTitle('View past conversations'));
     fireEvent.click(await screen.findByText('Chat 2'));
     expect(await screen.findByText('Chat 2', { selector: 'pre' })).toBeInTheDocument();
   });
@@ -356,7 +360,7 @@ describe('App', () => {
         await switchToTab('Git');
     });
     // analyzeButton is disabled by default when commitLog is empty
-    const analyzeButton = screen.getByText('Analyze with AI');
+    const analyzeButton = screen.getByText('Analyze Commits');
     expect(analyzeButton).toBeDisabled();
   });
 

@@ -165,16 +165,16 @@ export default function GitOperations({
 
   return (
     <div className="space-y-4">
-      <div className="bg-white border border-gray-200 rounded-xl p-4 flex flex-col md:flex-row md:items-end gap-3">
-        <div className="flex-1">
-          <label className="text-xs text-gray-500 block mb-1">Repository URL or Local Path</label>
-          <div className="flex gap-2">
+      <div className="space-y-3">
+        <div>
+          <label className="text-xs text-gray-500 block mb-1">URL or Local Path</label>
+          <div className="flex flex-col gap-2">
             <input
               value={url}
               onChange={(e) => setUrl(e.target.value)}
               type="text"
-              placeholder="https://github.com/user/repo.git or /path/to/repo"
-              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50 focus:bg-white"
+              placeholder="Repo URL or /path/to/repo"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50 focus:bg-white text-sm"
               onKeyDown={(e) => { if (e.key === "Enter") handleOpen(); }}
               disabled={busy || disabled}
             />
@@ -182,14 +182,15 @@ export default function GitOperations({
               variant="secondary" 
               onClick={() => { fetchRepos(); setShowSelectModal(true); }} 
               disabled={busy || disabled}
-              className="whitespace-nowrap"
+              className="w-full"
+              size="sm"
               title="Browse and select from local repositories"
             >
-              Select...
+              Browse Local...
             </Button>
           </div>
         </div>
-        <div className="w-full md:w-40">
+        <div>
           <label htmlFor="commits-limit" className="text-xs text-gray-500 block mb-1">Commits to fetch</label>
           <input
             id="commits-limit"
@@ -204,13 +205,29 @@ export default function GitOperations({
               if (n < 1) n = 1; if (n > 1000) n = 1000;
               setLimit(n);
             }}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50 focus:bg-white"
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50 focus:bg-white text-sm"
             disabled={busy || disabled}
           />
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="danger" onClick={handleClone} disabled={busy || disabled} title="Clone the specified remote repository to the server and fetch its commit log">Clone</Button>
-          <Button variant="primary" onClick={handleOpen} disabled={busy || disabled} title="Open the specified repository and fetch its commit log">Open</Button>
+        <div className="flex flex-col gap-2 pt-2">
+          <Button 
+            variant="primary" 
+            onClick={handleOpen} 
+            disabled={busy || disabled || !url.trim()}
+            fullWidth
+            size="sm"
+          >
+            Open Repo
+          </Button>
+            <Button 
+              variant="secondary" 
+              onClick={handleClone} 
+              disabled={busy || disabled || !url.trim()}
+              fullWidth
+              size="sm"
+            >
+              Clone Repo
+            </Button>
         </div>
       </div>
 
