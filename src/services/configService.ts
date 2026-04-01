@@ -1,6 +1,24 @@
+/**
+ * Copyright 2026 Robert Wheeler(dankgreywizard)
+ *
+ * Permission to use, copy, modify, and/or distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
 import path from 'path';
 import loki from 'lokijs';
 
+/**
+ * Configuration options for the AI services.
+ */
 interface AIConfig {
     apiKey?: string;
     baseUrl?: string;
@@ -12,6 +30,9 @@ interface AIConfig {
     maxDiffLength?: number;
 }
 
+/**
+ * Presets for AI reviewer personas, including their system prompts.
+ */
 const PERSONA_PRESETS = {
     "Expert Code Reviewer": `You are an expert code reviewer. Analyze the following commits and provide a comprehensive, detailed review:
 1) Executive Summary: A concise overview of the changes across ALL selected commits.
@@ -43,11 +64,18 @@ const DEFAULT_SYSTEM_PROMPT = PERSONA_PRESETS["Expert Code Reviewer"];
 
 const CONFIG_FILE = path.join(process.cwd(), 'data.json');
 
+/**
+ * Database document structure for the configuration.
+ */
 interface ConfigDoc {
     type: 'aiConfig';
     data: AIConfig;
 }
 
+/**
+ * Service for managing application configuration, including AI settings and personas.
+ * Persists settings to a local JSON file using LokiJS.
+ */
 export class ConfigService {
     private config: AIConfig = {};
     private db: loki;
@@ -69,6 +97,9 @@ export class ConfigService {
         });
     }
 
+    /**
+     * Initializes the database and loads existing configuration.
+     */
     private databaseInitialize() {
         this.configCollection = this.db.getCollection<ConfigDoc>('config');
         if (this.configCollection === null) {
@@ -90,10 +121,17 @@ export class ConfigService {
         this.resolveInitialized();
     }
 
+    /**
+     * Ensures that the database has been initialized before proceeding.
+     */
     private async ensureInitialized() {
         await this.initialized;
     }
 
+    /**
+     * Retrieves the current configuration, merging stored values with environment variables and defaults.
+     * @returns A promise that resolves to the current AIConfig.
+     */
     async getConfig(): Promise<AIConfig> {
         await this.ensureInitialized();
         // Priority: In-memory config > Process Env > Defaults
@@ -120,6 +158,10 @@ export class ConfigService {
         };
     }
 
+    /**
+     * Updates the configuration with new values and persists them to the database.
+     * @param newConfig The new configuration properties to apply.
+     */
     async updateConfig(newConfig: AIConfig) {
         await this.ensureInitialized();
         // Only merge properties that are actually present in newConfig

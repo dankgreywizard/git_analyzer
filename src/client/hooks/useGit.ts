@@ -1,6 +1,24 @@
+/**
+ * Copyright 2026 Robert Wheeler(dankgreywizard)
+ *
+ * Permission to use, copy, modify, and/or distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
 import { useState, useCallback } from 'react';
 import { GitEntry } from '../../types/git';
 
+/**
+ * Properties for the useGit hook.
+ */
 interface UseGitProps {
   commitLog: any[];
   selectedModel: string;
@@ -17,6 +35,12 @@ interface UseGitProps {
   scrollToBottom: () => void;
 }
 
+/**
+ * Hook for managing Git operations and state in the client.
+ * Provides functions for cloning, opening, and analyzing repositories.
+ * @param props The hook properties.
+ * @returns An object containing Git state and operation functions.
+ */
 export function useGit({
   commitLog,
   selectedModel,
@@ -31,6 +55,10 @@ export function useGit({
   const [selectedCommitOids, setSelectedCommitOids] = useState<Set<string>>(() => new Set());
   const [gitLoading, setGitLoading] = useState(false);
 
+  /**
+   * Analyzes Git commits using AI.
+   * @param overriddenCommits Optional list of commits to analyze, overriding the default commit log.
+   */
   const analyzeCommitsWithAI = useCallback(async (overriddenCommits?: any[]) => {
     const commitsToAnalyze = overriddenCommits || commitLog;
     if (!Array.isArray(commitsToAnalyze) || commitsToAnalyze.length === 0) {
@@ -75,6 +103,9 @@ export function useGit({
     );
   }, [commitLog, selectedCommitOids, selectedModel, currentChatId, sendAnalysisRequest, updateStatus, scrollToBottom, setCurrentTab, setCurrentChatId]);
 
+  /**
+   * Checks out the selected commits into temporary branches for detailed analysis.
+   */
   const checkoutSelectedCommits = useCallback(async () => {
     if (selectedCommitOids.size === 0) {
       // If nothing is selected, fall back to analyzing everything.
@@ -145,6 +176,10 @@ export function useGit({
     }
   }, [selectedCommitOids, gitEntries, updateStatus, analyzeCommitsWithAI, commitLog]);
 
+  /**
+   * Resets the repository to its original state, optionally deleting temporary branches.
+   * @param deleteTempBranches Whether to delete the temporary branches created during analysis.
+   */
   const resetRepository = useCallback(async (deleteTempBranches = true) => {
     const lastOp = [...gitEntries].reverse().find(e => (e.op === 'open' || e.op === 'clone' || e.op === 'checkout-multiple') && e.status === 'success');
     if (!lastOp || !lastOp.request?.dir) {

@@ -1,3 +1,18 @@
+/**
+ * Copyright 2026 Robert Wheeler(dankgreywizard)
+ *
+ * Permission to use, copy, modify, and/or distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
 import React, { useState, useEffect } from 'react';
 import { Settings as SettingsIcon, Save, RefreshCw } from 'lucide-react';
 
@@ -39,6 +54,10 @@ Keep it very brief.`,
 3) Technical Debt: Highlight areas where technical debt is being added or reduced.`
 };
 
+/**
+ * Component that displays and manages the application settings, including AI configuration and personas.
+ * @returns The rendered SettingsView component.
+ */
 export default function SettingsView() {
     const [config, setConfig] = useState<AIConfig>({});
     const [loading, setLoading] = useState(true);
@@ -49,6 +68,9 @@ export default function SettingsView() {
         fetchConfig();
     }, []);
 
+    /**
+     * Fetches the application configuration from the server.
+     */
     const fetchConfig = async () => {
         setLoading(true);
         try {
@@ -65,6 +87,10 @@ export default function SettingsView() {
         }
     };
 
+    /**
+     * Saves the application configuration to the server.
+     * @param e The form event.
+     */
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
         setSaving(true);

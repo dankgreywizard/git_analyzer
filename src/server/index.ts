@@ -1,3 +1,18 @@
+/**
+ * Copyright 2026 Robert Wheeler(dankgreywizard)
+ *
+ * Permission to use, copy, modify, and/or distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
 import { createServer } from "http";
 import express, {Express, Request, Response } from "express";
 import path from "path";
@@ -29,6 +44,10 @@ expressApp.post("/read", ollamaResponse);
 const gitService = new GitService({ reposBase: 'repos', defaultDepth: 25 });
 
 // Server-side clone endpoint to avoid browser FS and CORS
+/**
+ * POST /api/clone
+ * Clones a Git repository from a URL.
+ */
 expressApp.post('/api/clone', async (req, res) => {
     const { url, dir } = req.body || {};
     if (typeof url !== 'string' || !url.trim()) {
@@ -49,6 +68,10 @@ expressApp.post('/api/clone', async (req, res) => {
 });
 
 // Server-side open endpoint to verify and use an existing local repo
+/**
+ * POST /api/open
+ * Verifies and opens an existing local Git repository.
+ */
 expressApp.post('/api/open', async (req, res) => {
     const { url, dir } = req.body || {};
     const trimmedUrl = typeof url === 'string' ? url.trim() : undefined;
@@ -70,6 +93,10 @@ expressApp.post('/api/open', async (req, res) => {
 });
 
 // Endpoint to list available local repositories
+/**
+ * GET /api/repos
+ * Lists available local Git repositories.
+ */
 expressApp.get('/api/repos', async (req, res) => {
     try {
         const baseDir = typeof req.query.baseDir === 'string' ? req.query.baseDir.trim() : undefined;
@@ -90,6 +117,10 @@ expressApp.get('/api/repos', async (req, res) => {
 
 // Endpoint to checkout one or more commits into individual branches.
 // Body: { dir: string, commits: string[] }
+/**
+ * POST /api/checkout-commits
+ * Checks out multiple commits into temporary branches for analysis.
+ */
 expressApp.post('/api/checkout-commits', async (req, res) => {
     try {
         const { dir, commits } = req.body || {};
@@ -118,6 +149,10 @@ expressApp.post('/api/checkout-commits', async (req, res) => {
 
 // Endpoint to reset repository back to original state.
 // Body: { dir: string, deleteTempBranches?: boolean }
+/**
+ * POST /api/reset-repo
+ * Resets a repository to its original branch and cleans up temporary branches.
+ */
 expressApp.post('/api/reset-repo', async (req, res) => {
     try {
         const { dir, deleteTempBranches } = req.body || {};
@@ -140,6 +175,10 @@ expressApp.post('/api/reset-repo', async (req, res) => {
 // Accepts either:
 //   - url: a repository URL (preferred) → server maps to repos/<sanitized>
 //   - dir: a local path OR mistakenly a URL (server will map URL → local)
+/**
+ * GET /api/log
+ * Reads the Git commit log for a repository, including file changes and diffs.
+ */
 expressApp.get('/api/log', async (req, res) => {
     try {
         // Accept both `limit` and `depth`; clamp to [1, 1000]
@@ -204,6 +243,10 @@ expressApp.get('/api/log', async (req, res) => {
 });
 
 // List available AI models
+/**
+ * GET /api/ollama/models
+ * Lists available AI models from the configured AI service.
+ */
 expressApp.get('/api/ollama/models', async (_req, res) => {
     try {
         const aiService = await getAIService();
@@ -216,6 +259,10 @@ expressApp.get('/api/ollama/models', async (_req, res) => {
 });
 
 // Analyze commits via LLM (currently supports Ollama) and stream response as text/plain
+/**
+ * POST /api/analyze-commits
+ * Analyzes a list of Git commits using the configured AI service and streams the response.
+ */
 expressApp.post('/api/analyze-commits', async (req: Request, res: Response) => {
     console.log("Starting commit analysis request...");
     try {
@@ -320,6 +367,10 @@ Your tone should be professional and constructive. Use the provided diffs to giv
     }
 });
 // Get current AI configuration
+/**
+ * GET /api/config
+ * Retrieves the current application configuration.
+ */
 expressApp.get('/api/config', async (_req, res) => {
     const config = await configService.getConfig();
     // Mask API key for security
@@ -330,6 +381,10 @@ expressApp.get('/api/config', async (_req, res) => {
 });
 
 // Update AI configuration
+/**
+ * POST /api/config
+ * Updates the application configuration.
+ */
 expressApp.post('/api/config', async (req, res) => {
     try {
         const { apiKey, baseUrl, defaultModel, availableModels, systemPrompt, persona, timeout, maxDiffLength } = req.body || {};

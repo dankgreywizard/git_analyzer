@@ -1,3 +1,18 @@
+/**
+ * Copyright 2026 Robert Wheeler(dankgreywizard)
+ *
+ * Permission to use, copy, modify, and/or distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
 import React, { useCallback, useState } from "react";
 import Button from "./Button";
 import Modal from "./Modal";
@@ -12,6 +27,8 @@ interface GitOperationsProps {
 
 /**
  * Component to handle Git operations like cloning, opening repositories, and fetching logs.
+ * @param props The component properties.
+ * @returns The rendered GitOperations component.
  */
 export default function GitOperations({ 
   onResult, 
@@ -28,6 +45,9 @@ export default function GitOperations({
   const [loadingRepos, setLoadingRepos] = useState(false);
   const [baseDir, setBaseDir] = useState("repos");
 
+  /**
+   * Fetches the list of local repositories from the server.
+   */
   const fetchRepos = useCallback(async () => {
     setLoadingRepos(true);
     try {
@@ -43,16 +63,27 @@ export default function GitOperations({
     }
   }, [baseDir]);
 
+  /**
+   * Handles selecting a repository from the list of local repositories.
+   * @param repoName The name of the repository.
+   */
   const handleSelectRepo = (repoName: string) => {
     const prefix = baseDir.endsWith("/") ? baseDir : `${baseDir}/`;
     setUrl(`${prefix}${repoName}`);
     setShowSelectModal(false);
   };
 
+  /**
+   * Pushes the result of a Git operation to the parent component.
+   * @param entry The result entry.
+   */
   const pushResult = useCallback((entry: any) => {
     onResult?.({ id: String(Date.now()) + Math.random().toString(36).slice(2), time: Date.now(), ...entry });
   }, [onResult]);
 
+  /**
+   * Handles cloning a Git repository.
+   */
   const handleClone = useCallback(async () => {
     const repoUrl = url.trim();
     if (!repoUrl) {
@@ -87,6 +118,9 @@ export default function GitOperations({
     }
   }, [url, pushResult, updateStatus, disabled, onBusyChange]);
 
+  /**
+   * Handles opening a Git repository.
+   */
   const handleOpen = useCallback(async () => {
     const repoUrl = url.trim();
     if (!repoUrl) {
@@ -125,6 +159,10 @@ export default function GitOperations({
     }
   }, [url, pushResult, updateStatus, disabled, onBusyChange]);
 
+  /**
+   * Fetches the Git log for the current repository.
+   * @param ignoreDisabled Whether to ignore the disabled state.
+   */
   const handleLog = useCallback(async (ignoreDisabled = false) => {
     const repoUrl = url.trim();
     if (!repoUrl) {
