@@ -1,3 +1,18 @@
+/**
+ * Copyright 2026 Robert Wheeler(dankgreywizard)
+ *
+ * Permission to use, copy, modify, and/or distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
 import React, {useMemo} from "react";
 
 // Entry shape suggestion:
@@ -11,6 +26,8 @@ interface GitConsoleProps {
 
 /**
  * Component to display a log of Git operations performed during the session.
+ * @param props The component properties.
+ * @returns The rendered GitConsole component.
  */
 export default function GitConsole({ entries = [], onClear }: GitConsoleProps) {
   const sorted = useMemo(() => [...entries].sort((a,b) => (a.time||0) - (b.time||0)), [entries]);
@@ -64,6 +81,11 @@ export default function GitConsole({ entries = [], onClear }: GitConsoleProps) {
   );
 }
 
+/**
+ * Safely stringifies a value to JSON, falling back to a string representation if it fails.
+ * @param v The value to stringify.
+ * @returns The string representation of the value.
+ */
 function safeStringify(v: any) {
   try {
     return JSON.stringify(v, null, 2);

@@ -1,3 +1,18 @@
+/**
+ * Copyright 2026 Robert Wheeler(dankgreywizard)
+ *
+ * Permission to use, copy, modify, and/or distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
 import React, { useCallback, useRef, useState } from "react";
 import ChatHistory from "./components/ChatHistory";
 import HistoryModal from "./components/HistoryModal";
@@ -38,8 +53,16 @@ export default function App() {
   // LLM model selection for analysis
   const { models, selectedModel, setSelectedModel } = useModels(currentTab === 'settings' ? 'chat' : currentTab);
 
+  /**
+   * Updates the application status message and color.
+   * @param text The status message to display.
+   * @param color The color indicator for the status.
+   */
   const updateStatus = useCallback((text: string, color: "gray" | "yellow" | "green" | "red" = "gray") => setStatus({ text, color }), []);
 
+  /**
+   * Scrolls the chat container to the bottom.
+   */
   const scrollToBottom = useCallback(() => {
     const el = chatContainerRef.current;
     if (!el) return;
@@ -69,6 +92,9 @@ export default function App() {
     scrollToBottom,
   });
 
+  /**
+   * Starts a new chat session, saving the current one if it exists.
+   */
   const startNewChat = useCallback(() => {
     if (messages.length > 0 && currentChatId) {
       // save current
@@ -79,12 +105,17 @@ export default function App() {
     updateStatus("Ready", "gray");
   }, [messages, currentChatId, updateStatus, saveChat, setMessages]);
 
-  // helper to save current chat into history
+  /**
+   * Helper function to save the current chat session into history.
+   */
   const saveCurrentChat = useCallback(() => {
     if (messages.length === 0 || !currentChatId) return;
     saveChat(currentChatId, messages.map((m) => ({ role: m.role, content: m.content })));
   }, [messages, currentChatId, saveChat]);
 
+  /**
+   * Handles sending a user message to the AI.
+   */
   const handleSend = useCallback(() => {
     const userInput = inputValue.trim();
     if (!userInput || sending) return;

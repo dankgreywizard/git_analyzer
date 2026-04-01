@@ -193,4 +193,4 @@ npm start
 
 ## 📄 License
 
-This project is licensed under the ISC License.
+© 2026 Robert Wheeler(dankgreywizard). This project is licensed under the ISC License. See the [LICENSE](LICENSE) file for details.

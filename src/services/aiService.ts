@@ -1,17 +1,47 @@
+/**
+ * Copyright 2026 Robert Wheeler(dankgreywizard)
+ *
+ * Permission to use, copy, modify, and/or distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
 import { Ollama } from 'ollama';
 import { Message } from '../types/chat';
 import { configService } from './configService';
 
+/**
+ * Interface for AI service providers.
+ */
 export interface AIService {
+    /**
+     * Sends a chat request to the AI service.
+     * @param options The chat options including model and messages.
+     * @returns The AI response, either as a promise or an async iterable.
+     */
     chat(options: {
         model: string;
         messages: Message[];
         stream?: boolean;
         timeout?: number;
     }): Promise<AsyncIterable<any> | any>;
+    /**
+     * Lists the available AI models for the service.
+     * @returns A promise that resolves to an array of model names.
+     */
     listModels(): Promise<string[]>;
 }
 
+/**
+ * Base class for AI services providing common functionality.
+ */
 export abstract class BaseAIService implements AIService {
     abstract chat(options: {
         model: string;
@@ -22,6 +52,12 @@ export abstract class BaseAIService implements AIService {
 
     abstract listModels(): Promise<string[]>;
 
+    /**
+     * Handles errors from AI service calls and provides context.
+     * @param e The error object.
+     * @param context A description of where the error occurred.
+     * @param timeout The timeout value in milliseconds, if applicable.
+     */
     protected handleError(e: any, context: string, timeout?: number): never {
         if (e.name === 'AbortError') {
             throw new Error(`AI request timed out after ${timeout}ms`);
@@ -30,9 +66,16 @@ export abstract class BaseAIService implements AIService {
     }
 }
 
+/**
+ * AI service implementation for Ollama.
+ */
 export class OllamaAIService extends BaseAIService {
     private client: Ollama;
 
+    /**
+     * Initializes a new instance of the OllamaAIService class.
+     * @param baseUrl The base URL of the Ollama API.
+     */
     constructor(baseUrl?: string) {
         super();
         this.client = new Ollama(baseUrl ? { host: baseUrl } : undefined);
@@ -78,7 +121,15 @@ export class OllamaAIService extends BaseAIService {
     }
 }
 
-export class ExternalAIService extends BaseAIService {
+    /**
+     * AI service implementation for an external provider (e.g., OpenAI, Claude).
+     */
+    export class ExternalAIService extends BaseAIService {
+    /**
+     * Initializes a new instance of the ExternalAIService class.
+     * @param apiKey The API key for the service.
+     * @param baseUrl The base URL of the service API.
+     */
     constructor(private apiKey: string, private baseUrl: string = 'https://api.openai.com/v1') {
         super();
     }
@@ -168,7 +219,15 @@ export class ExternalAIService extends BaseAIService {
     }
 }
 
-export async function getAIService(): Promise<AIService> {
+    /**
+     * Creates and returns the appropriate AI service instance based on configuration.
+     * @returns A promise that resolves to an AIService instance.
+     */
+    /**
+     * Factory function that returns the appropriate AIService implementation based on the application configuration.
+     * @returns A promise that resolves to an AIService instance (either Ollama or an external provider).
+     */
+    export async function getAIService(): Promise<AIService> {
     const config = await configService.getConfig();
     const apiKey = config.apiKey;
     const baseUrl = config.baseUrl;

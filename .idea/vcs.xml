@@ -2,5 +2,8 @@
 <project version="4">
   <component name="VcsDirectoryMappings">
     <mapping directory="$PROJECT_DIR$" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/repos/PacktPublishing--The-4-AI-Agentic-Design-Patterns-for-AI-Agentic-Worflows-with-Ollama-Models-git" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/repos/ollama-ollama" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/repos/ollama-ollama-git" vcs="Git" />
   </component>
 </project>

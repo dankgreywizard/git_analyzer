@@ -1,3 +1,18 @@
+/**
+ * Copyright 2026 Robert Wheeler(dankgreywizard)
+ *
+ * Permission to use, copy, modify, and/or distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
 import React from "react";
 import GitOperations from "./GitOperations";
 import GitConsole from "./GitConsole";
@@ -25,6 +40,11 @@ interface GitViewProps {
   gitEntries: GitEntry[];
 }
 
+/**
+ * Component to select an AI model for code analysis.
+ * @param props The component properties.
+ * @returns The rendered ModelSelector component.
+ */
 const ModelSelector: React.FC<{
   selectedModel: string;
   setSelectedModel: (model: string) => void;
@@ -52,6 +72,11 @@ const ModelSelector: React.FC<{
   </div>
 );
 
+/**
+ * View component for managing Git operations and analyzing commits.
+ * @param props The component properties.
+ * @returns The rendered GitView component.
+ */
 const GitView: React.FC<GitViewProps> = ({
   gitLoading,
   updateStatus,

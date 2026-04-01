@@ -1,13 +1,34 @@
+/**
+ * Copyright 2026 Robert Wheeler(dankgreywizard)
+ *
+ * Permission to use, copy, modify, and/or distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
 import git from 'isomorphic-git';
 import http from 'isomorphic-git/http/node';
 import fs from 'fs';
 
+/**
+ * Options for cloning a repository.
+ */
 export interface CloneOptions {
   depth?: number;
   singleBranch?: boolean;
   ref?: string;
 }
 
+/**
+ * Options for reading the commit log.
+ */
 export interface LogOptions {
   ref?: string;
   depth?: number;
@@ -116,6 +137,7 @@ export class GitService {
    * @param ref The commit OID or reference to check out.
    * @param branch Optional branch name to create/checkout.
    * @param force Optional force flag.
+   * @returns A promise that resolves to an object containing the current branch.
    */
   async checkout(dir: string, ref: string, branch?: string, force = false): Promise<{ branch: string }> {
     const targetDir = this.validatePath(dir);
@@ -149,7 +171,7 @@ export class GitService {
   /**
    * Lists all Git repositories in a given directory.
    * @param baseDir The directory to search in (defaults to this.reposBase).
-   * @returns Array of repository directory names.
+   * @returns A promise that resolves to an array of repository directory names.
    */
   async listRepos(baseDir?: string): Promise<string[]> {
     const targetBase = baseDir ? this.norm(baseDir) : this.reposBase;
@@ -178,8 +200,8 @@ export class GitService {
   /**
    * Reads the commit log for a repository and includes changed files for each commit.
    * @param dir The repository directory.
-   * @param options Optional log settings (ref, depth).
-   * @returns Object containing the list of commits and an optional note.
+   * @param options Optional log settings (ref, depth, maxDiffLength).
+   * @returns A promise that resolves to an object containing the list of commits and an optional note.
    */
   async readLogWithFiles(dir: string, options?: LogOptions): Promise<{ commits: any[]; note?: string }>{
     const normDir = this.norm(dir);
@@ -224,6 +246,15 @@ export class GitService {
     return { commits: result };
   }
 
+  /**
+   * Generates a simple unified diff between two text contents.
+   * @param filepath The path of the file being diffed.
+   * @param status The modification status (added, deleted, modified).
+   * @param textA The original file content.
+   * @param textB The new file content.
+   * @param maxDiffLength The maximum length of the generated diff.
+   * @returns The generated diff string.
+   */
   private generateSimpleDiff(filepath: string, status: 'added' | 'deleted' | 'modified', textA: string, textB: string, maxDiffLength = 10000): string {
     let diff = '';
     const MAX_CONTENT_LENGTH = maxDiffLength;
@@ -353,7 +384,7 @@ export class GitService {
    * Resets a repository to its default branch (e.g., main or master) and optionally deletes temporary branches.
    * @param dir The repository directory.
    * @param options Optional reset settings (targetBranch, deleteTempBranches).
-   * @returns The target branch after reset.
+   * @returns A promise that resolves to an object containing the target branch after reset.
    */
   async reset(dir: string, options?: { targetBranch?: string; deleteTempBranches?: boolean }): Promise<{ branch: string }> {
     const targetDir = this.validatePath(dir);
@@ -406,6 +437,11 @@ export class GitService {
   }
 
   // Helpers
+  /**
+   * Sanitizes a repository name from a given URL.
+   * @param url The repository URL.
+   * @returns A sanitized name suitable for a directory.
+   */
   sanitizeRepoName(url: string): string {
     try {
       const u = new URL(url);
@@ -418,21 +454,41 @@ export class GitService {
     }
   }
 
+  /**
+   * Resolves the target directory for a repository URL and optional directory name.
+   * @param url The repository URL.
+   * @param dir Optional target directory name.
+   * @returns The resolved target directory path.
+   */
   private resolveTargetDir(url: string, dir?: string): string {
     const base = this.reposBase;
     return dir && dir.trim().length > 0 ? this.norm(dir) : `${base}/${this.sanitizeRepoName(url)}`;
   }
 
+  /**
+   * Ensures that a directory exists, creating it if necessary.
+   * @param dir The directory path.
+   */
   private async ensureDir(dir: string): Promise<void> {
     await fs.promises.mkdir(dir, { recursive: true });
   }
 
+  /**
+   * Checks if a directory is within the configured repos base.
+   * @param dir The directory path.
+   * @returns True if the directory is under the repos base, false otherwise.
+   */
   private isUnderRepos(dir: string): boolean {
     const d = this.norm(dir);
     const b = this.reposBase.endsWith('/') ? this.reposBase : `${this.reposBase}/`;
     return d === this.reposBase || d.startsWith(b);
   }
 
+  /**
+   * Normalizes a path by fixing slashes and resolving relative segments.
+   * @param p The path to normalize.
+   * @returns The normalized path.
+   */
   private norm(p: string): string {
     // Basic normalization: replace backslashes and remove duplicate slashes
     let normalized = p.replace(/\\/g, '/').replace(/\/+/g, '/');
@@ -454,10 +510,22 @@ export class GitService {
     return result.join('/') || '';
   }
 
+  /**
+   * Safely resolves a git reference (e.g., branch, tag, or OID).
+   * @param dir The repository directory.
+   * @param ref The reference to resolve.
+   * @returns The resolved OID, or null if it cannot be resolved.
+   */
   private async resolveRefSafe(dir: string, ref: string): Promise<string | null> {
     return git.resolveRef({ fs, dir, ref }).catch(() => null);
   }
 
+  /**
+   * Deepens a shallow clone if necessary to ensure it has enough history.
+   * @param dir The repository directory.
+   * @param ref The reference to fetch.
+   * @param depth The desired history depth.
+   */
   private async deepenIfNeeded(dir: string, ref: string, depth?: number): Promise<void> {
     if (!depth || depth <= 0) return;
     try {
