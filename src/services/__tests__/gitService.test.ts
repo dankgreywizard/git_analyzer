@@ -388,6 +388,51 @@ describe('GitService', () => {
     it('should throw error if outside repos base', async () => {
       await expect(gitService.reset('/outside')).rejects.toThrow('outside repos base');
     });
+
+    it('should default to main if no branch found', async () => {
+        const dir = 'test-repos/repo1';
+        (git.resolveRef as any).mockRejectedValue(new Error('no branch'));
+        (git.checkout as any).mockResolvedValue(undefined);
+  
+        const result = await gitService.reset(dir);
+  
+        expect(result.branch).toBe('main');
+        expect(git.checkout).toHaveBeenCalledWith(expect.objectContaining({
+          ref: 'main',
+        }));
+      });
+  
+      it('should handle branch deletion failures', async () => {
+        const dir = 'test-repos/repo1';
+        (git.resolveRef as any).mockResolvedValue('oid');
+        (git.checkout as any).mockResolvedValue(undefined);
+        (git.listBranches as any).mockResolvedValue(['main', 'branch-1']);
+        (git.deleteBranch as any).mockRejectedValue(new Error('delete failed'));
+  
+        const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+        await gitService.reset(dir, { deleteTempBranches: true });
+  
+        expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Failed to delete branch branch-1'), expect.any(Error));
+      });
+  
+      it('should handle reset exception', async () => {
+        const dir = 'test-repos/repo1';
+        (git.resolveRef as any).mockResolvedValue('oid');
+        (git.checkout as any).mockRejectedValue(new Error('checkout failed'));
+  
+        const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+        await expect(gitService.reset(dir)).rejects.toThrow('Reset failed');
+        expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Reset failed for'), expect.any(Error));
+      });
+
+      it('should handle no target branch provided and no candidates found', async () => {
+        const dir = 'test-repos/repo1';
+        (git.resolveRef as any).mockRejectedValue(new Error('no ref'));
+        (git.checkout as any).mockResolvedValue(undefined);
+
+        const result = await gitService.reset(dir);
+        expect(result.branch).toBe('main'); // Falls back to main if no candidates found
+      });
   });
 
   describe('helpers', () => {
