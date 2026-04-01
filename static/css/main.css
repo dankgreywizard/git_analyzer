@@ -739,6 +739,9 @@ button:not(:disabled):active {
 .grid {
   display: grid;
 }
+np.contents {
+  display: contents;
+}
 .hidden {
   display: none;
 }

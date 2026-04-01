@@ -74,6 +74,30 @@ describe('useGit', () => {
     expect(payload.commits.length).toBe(2);
   });
 
+  it('should handle missing oid in analyzeCommitsWithAI filtering', async () => {
+    const props = {
+        ...defaultProps,
+        commitLog: [
+            { commit: { oid: '123' } },
+            { something_else: '456' } // missing oid
+        ]
+    };
+    const { result } = renderHook(() => useGit(props));
+    
+    act(() => {
+        result.current.setSelectedCommitOids(new Set(['123', '456']));
+    });
+
+    await act(async () => {
+        await result.current.analyzeCommitsWithAI();
+    });
+
+    expect(mockSendAnalysisRequest).toHaveBeenCalled();
+    const payload = mockSendAnalysisRequest.mock.calls[0][1];
+    expect(payload.commits.length).toBe(1); // Only 123 should be included
+    expect(payload.commits[0].commit.oid).toBe('123');
+  });
+
   it('should checkout selected commits and then analyze', async () => {
     const { result } = renderHook(() => useGit(defaultProps));
     
@@ -248,6 +272,185 @@ describe('useGit', () => {
     expect(result.current.gitLoading).toBe(false);
     expect(result.current.gitEntries).toHaveLength(2);
     expect(result.current.gitEntries[1].op).toBe('reset');
+  });
+
+  it('should handle reset failure', async () => {
+    const { result } = renderHook(() => useGit(defaultProps));
+    
+    act(() => {
+        result.current.setGitEntries([{
+            id: '1',
+            time: Date.now(),
+            op: 'open',
+            status: 'success',
+            request: { dir: 'repos/test' },
+        }]);
+    });
+
+    global.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        json: async () => ({ error: 'Reset failed error' }),
+    });
+
+    await act(async () => {
+        await result.current.resetRepository();
+    });
+
+    expect(mockUpdateStatus).toHaveBeenCalledWith('Reset failed: Reset failed error', 'red');
+    expect(result.current.gitLoading).toBe(false);
+  });
+
+  it('should handle reset exception', async () => {
+    const { result } = renderHook(() => useGit(defaultProps));
+    
+    act(() => {
+        result.current.setGitEntries([{
+            id: '1',
+            time: Date.now(),
+            op: 'open',
+            status: 'success',
+            request: { dir: 'repos/test' },
+        }]);
+    });
+
+    global.fetch = vi.fn().mockRejectedValue(new Error('Network error'));
+
+    await act(async () => {
+        await result.current.resetRepository();
+    });
+
+    expect(mockUpdateStatus).toHaveBeenCalledWith('Reset failed: Network error', 'red');
+    expect(result.current.gitLoading).toBe(false);
+  });
+
+  it('should handle checkout exception', async () => {
+    const { result } = renderHook(() => useGit(defaultProps));
+    
+    act(() => {
+        result.current.setGitEntries([{
+            id: '1',
+            time: Date.now(),
+            op: 'open',
+            status: 'success',
+            data: { dir: 'repos/test' },
+            request: { dir: 'repos/test' }
+        }]);
+        result.current.setSelectedCommitOids(new Set(['123']));
+    });
+
+    global.fetch = vi.fn().mockRejectedValue(new Error('Network error'));
+
+    await act(async () => {
+      await result.current.checkoutSelectedCommits();
+    });
+
+    expect(mockUpdateStatus).toHaveBeenCalledWith('Checkout failed', 'red');
+    expect(result.current.gitEntries).toHaveLength(2);
+    expect(result.current.gitEntries[1].status).toBe('error');
+    expect(result.current.gitEntries[1].error).toBe('Network error');
+  });
+
+  it('should handle empty author name in analysis', async () => {
+    const props = {
+        ...defaultProps,
+        commitLog: [
+            { oid: '123', commit: { author: { name: '' } } }
+        ]
+    };
+    const { result } = renderHook(() => useGit(props));
+    
+    await act(async () => {
+        await result.current.analyzeCommitsWithAI();
+    });
+
+    expect(mockSendAnalysisRequest).toHaveBeenCalledWith(
+        expect.stringContaining('authors: Unknown'),
+        expect.any(Object),
+        expect.any(Function),
+        expect.any(Function)
+    );
+  });
+
+  it('should handle missing author object in analysis', async () => {
+    const props = {
+        ...defaultProps,
+        commitLog: [
+            { oid: '123' }
+        ]
+    };
+    const { result } = renderHook(() => useGit(props));
+    
+    await act(async () => {
+        await result.current.analyzeCommitsWithAI();
+    });
+
+    expect(mockSendAnalysisRequest).toHaveBeenCalledWith(
+        expect.stringContaining('authors: Unknown'),
+        expect.any(Object),
+        expect.any(Function),
+        expect.any(Function)
+    );
+  });
+
+  it('should handle many authors in analysis', async () => {
+    const authors = Array.from({ length: 12 }, (_, i) => ({ name: `Author ${i}` }));
+    const props = {
+        ...defaultProps,
+        commitLog: authors.map((a, i) => ({ oid: String(i), author: a }))
+    };
+    const { result } = renderHook(() => useGit(props));
+    
+    await act(async () => {
+        await result.current.analyzeCommitsWithAI();
+    });
+
+    expect(mockSendAnalysisRequest).toHaveBeenCalledWith(
+        expect.stringContaining('+2 more'),
+        expect.any(Object),
+        expect.any(Function),
+        expect.any(Function)
+    );
+  });
+
+  it('should handle no commits to analyze', async () => {
+    const props = {
+        ...defaultProps,
+        commitLog: []
+    };
+    const { result } = renderHook(() => useGit(props));
+    
+    await act(async () => {
+        await result.current.analyzeCommitsWithAI();
+    });
+
+    expect(mockUpdateStatus).toHaveBeenCalledWith('No commits to analyze', 'yellow');
+    expect(mockSendAnalysisRequest).not.toHaveBeenCalled();
+  });
+
+  it('should handle no selected commits to analyze', async () => {
+    const { result } = renderHook(() => useGit(defaultProps));
+    
+    // Select an OID that doesn't exist in commitLog
+    act(() => {
+        result.current.setSelectedCommitOids(new Set(['non-existent']));
+    });
+
+    await act(async () => {
+        await result.current.analyzeCommitsWithAI();
+    });
+
+    expect(mockUpdateStatus).toHaveBeenCalledWith('No selected commits to analyze', 'yellow');
+    expect(mockSendAnalysisRequest).not.toHaveBeenCalled();
+  });
+
+  it('should set current chat ID if missing during analysis', async () => {
+    const { result } = renderHook(() => useGit(defaultProps));
+    
+    await act(async () => {
+        await result.current.analyzeCommitsWithAI();
+    });
+
+    expect(mockSetCurrentChatId).toHaveBeenCalled();
   });
 
   it('should fail reset if no active repository', async () => {

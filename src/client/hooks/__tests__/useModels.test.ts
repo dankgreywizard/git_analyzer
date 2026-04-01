@@ -107,4 +107,28 @@ describe('useModels', () => {
     expect(result.current.models).toEqual([]);
     expect(result.current.selectedModel).toBe('codellama:latest');
   });
+  it('should handle non-ok responses gracefully', async () => {
+    (vi.mocked(fetch) as any).mockResolvedValueOnce({
+      ok: false,
+      status: 500,
+      json: async () => ({ error: 'Error' }),
+    });
+
+    const { result } = renderHook(() => useModels('git'));
+    await new Promise(resolve => setTimeout(resolve, 50));
+
+    expect(result.current.models).toEqual([]);
+  });
+
+  it('should handle non-array model data gracefully', async () => {
+    (vi.mocked(fetch) as any).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ models: 'not-an-array' }),
+    });
+
+    const { result } = renderHook(() => useModels('git'));
+    await new Promise(resolve => setTimeout(resolve, 50));
+
+    expect(result.current.models).toEqual([]);
+  });
 });

@@ -152,4 +152,155 @@ describe('ollamaService', () => {
     expect(resp.status).toHaveBeenCalledWith(500);
     expect(resp.json).toHaveBeenCalledWith(expect.objectContaining({ error: expect.stringContaining('Initial fail') }));
   });
+
+  it('should handle invalid request body (not an array)', async () => {
+    const req = { body: 'not-an-array' } as any;
+    const resp = {
+        status: vi.fn().mockReturnThis(),
+        json: vi.fn()
+    } as any;
+
+    await ollamaResponse(req, resp);
+    expect(resp.status).toHaveBeenCalledWith(400);
+    expect(resp.json).toHaveBeenCalledWith(expect.objectContaining({ error: expect.stringContaining('Invalid request body') }));
+  });
+
+  it('should handle invalid message type', async () => {
+    const req = { body: [123] } as any;
+    const resp = {
+        status: vi.fn().mockReturnThis(),
+        json: vi.fn()
+    } as any;
+
+    await ollamaResponse(req, resp);
+    expect(resp.status).toHaveBeenCalledWith(400);
+  });
+
+  it('should handle invalid JSON in string message', async () => {
+    const req = { body: ['{invalid json}'] } as any;
+    const resp = {
+        status: vi.fn().mockReturnThis(),
+        json: vi.fn()
+    } as any;
+
+    await ollamaResponse(req, resp);
+    expect(resp.status).toHaveBeenCalledWith(400);
+  });
+
+  it('should handle invalid message structure', async () => {
+    const req = { body: [{ role: 'user' }] } as any; // missing content
+    const resp = {
+        status: vi.fn().mockReturnThis(),
+        json: vi.fn()
+    } as any;
+
+    await ollamaResponse(req, resp);
+    expect(resp.status).toHaveBeenCalledWith(400);
+  });
+
+  it('should handle invalid role', async () => {
+    const req = { body: [{ role: 'invalid', content: 'hi' }] } as any;
+    const resp = {
+        status: vi.fn().mockReturnThis(),
+        json: vi.fn()
+    } as any;
+
+    await ollamaResponse(req, resp);
+    expect(resp.status).toHaveBeenCalledWith(400);
+  });
+
+  it('should handle client disconnection', async () => {
+    let closeCallback: any;
+    const req = {
+      body: [{ role: 'user', content: 'hello' }],
+      on: vi.fn().mockImplementation((event, cb) => {
+          if (event === 'close') closeCallback = cb;
+      }),
+    } as any;
+    const resp = {
+      setHeader: vi.fn(),
+      write: vi.fn(),
+      end: vi.fn(),
+      headersSent: false,
+    } as any;
+
+    const mockStream = (async function* () {
+      yield { message: { content: 'Chunk1' } };
+      closeCallback(); // Simulate client disconnection
+      yield { message: { content: 'Chunk2' } };
+    })();
+
+    vi.mocked(getAIService).mockResolvedValue({
+      chat: vi.fn().mockResolvedValue(mockStream),
+      listModels: vi.fn(),
+    } as any);
+
+    await ollamaResponse(req, resp);
+
+    expect(resp.write).toHaveBeenCalledWith('Chunk1');
+    expect(resp.write).not.toHaveBeenCalledWith('Chunk2');
+    expect(resp.end).not.toHaveBeenCalled(); // break loop, end not called in catch/finally if cancelled
+  });
+
+  it('should handle AI service exception', async () => {
+    const req = {
+      body: [{ role: 'user', content: 'hello' }],
+      on: vi.fn(),
+    } as any;
+    const resp = {
+      status: vi.fn().mockReturnThis(),
+      json: vi.fn(),
+      headersSent: false,
+    } as any;
+
+    vi.mocked(getAIService).mockRejectedValue(new Error('AI Service Down'));
+
+    await ollamaResponse(req, resp);
+    expect(resp.status).toHaveBeenCalledWith(500);
+    expect(resp.json).toHaveBeenCalledWith(expect.objectContaining({ error: expect.stringContaining('AI Service Down') }));
+  });
+
+  it('should handle AI service exception after headers sent', async () => {
+    const req = {
+      body: [{ role: 'user', content: 'hello' }],
+      on: vi.fn(),
+    } as any;
+    const resp = {
+      write: vi.fn(),
+      end: vi.fn(),
+      headersSent: true,
+    } as any;
+
+    vi.mocked(getAIService).mockRejectedValue(new Error('AI Service Down'));
+
+    await ollamaResponse(req, resp);
+    expect(resp.write).toHaveBeenCalledWith(expect.stringContaining('AI service error: AI Service Down'));
+  });
+
+  it('should not prepend system prompt if already present', async () => {
+    const req = {
+      body: [{ role: 'system', content: 'Existing system prompt' }, { role: 'user', content: 'hello' }],
+      on: vi.fn(),
+    } as any;
+    const resp = {
+      setHeader: vi.fn(),
+      write: vi.fn(),
+      end: vi.fn(),
+    } as any;
+
+    const chatSpy = vi.fn().mockResolvedValue((async function* () { yield { response: 'Hi' }; })());
+    vi.mocked(getAIService).mockResolvedValue({
+      chat: chatSpy,
+    } as any);
+
+    await ollamaResponse(req, resp);
+
+    expect(chatSpy).toHaveBeenCalledWith(expect.objectContaining({
+      messages: [
+        { role: 'system', content: 'Existing system prompt' },
+        { role: 'user', content: 'hello' }
+      ]
+    }));
+    // Should NOT have prepended the default system prompt from config
+  });
 });

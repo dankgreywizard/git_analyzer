@@ -165,10 +165,14 @@ npm start
 - **Start Frontend**: `npm run client`
 - **Build All**: `npm run build`
 - **Build CSS**: `npm run build:css`
-- **Run Tests**: `npm test` (222 tests currently passing across 24 files)
+- **Run Tests**: `npm test` (264 tests currently passing across 24 files)
+- **Check Coverage**: `npm run test:coverage` (Successfully met the 75% branch coverage threshold, with core service/hook line coverage reaching 100% or near-100%.)
 
 ### API Endpoints (Core)
 - **POST `/api/clone`**: Clone a Git repository to the server.
+- **POST `/api/open`**: Verify and open an existing local Git repository.
+- **GET `/api/repos`**: List available local Git repositories on the server.
+- **GET `/api/log`**: Retrieve the Git commit log for a repository, including file changes and diffs.
 - **POST `/api/checkout-commits`**: Checkout multiple commits into separate branches.
 - **POST `/api/analyze-commits`**: Send commits for AI analysis with detailed diffs.
 - **POST `/api/reset-repo`**: Reset the repository to the default branch and clean up temporary branches.

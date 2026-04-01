@@ -122,4 +122,28 @@ describe('ConfigService', () => {
         expect(process.env.AI_PERSONA).toBe('Refactoring Specialist');
         expect(process.env.AI_TIMEOUT).toBe('45000');
     });
+
+    it('should handle clearing config values with empty strings or 0', async () => {
+        process.env.AI_MODEL = 'old-model';
+        process.env.AI_MODELS = 'm1,m2';
+        process.env.AI_PERSONA = 'old-persona';
+        process.env.AI_TIMEOUT = '1000';
+        process.env.AI_MAX_DIFF_LENGTH = '50000';
+
+        configService = new ConfigService(':memory:');
+        
+        await configService.updateConfig({
+            defaultModel: '',
+            availableModels: '',
+            persona: '',
+            timeout: 0,
+            maxDiffLength: 0
+        });
+
+        expect(process.env.AI_MODEL).toBeUndefined();
+        expect(process.env.AI_MODELS).toBeUndefined();
+        expect(process.env.AI_PERSONA).toBeUndefined();
+        expect(process.env.AI_TIMEOUT).toBeUndefined();
+        expect(process.env.AI_MAX_DIFF_LENGTH).toBeUndefined();
+    });
 });
