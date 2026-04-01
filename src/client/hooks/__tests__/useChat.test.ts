@@ -239,7 +239,7 @@ describe('useChat', () => {
     const { result } = renderHook(() => useChat());
     const onUpdateStatus = vi.fn();
     
-    (vi.mocked(fetch) as any).mockImplementationOnce(async (url, options: any) => {
+    (vi.mocked(fetch) as any).mockImplementationOnce(async (url: any, options: any) => {
         // Wait for abort
         while(!options.signal.aborted) {
             await new Promise(r => setTimeout(r, 10));

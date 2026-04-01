@@ -739,7 +739,7 @@ button:not(:disabled):active {
 .grid {
   display: grid;
 }
-np.contents {
+.contents {
   display: contents;
 }
 .hidden {
