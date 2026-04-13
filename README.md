@@ -19,7 +19,7 @@ A modern web application that combines local AI capabilities with Git repository
 - **Configurable Timeout**: Set a custom timeout for AI requests to manage latency and performance.
 - **Persistent Settings**: Uses an in-memory database (**LokiJS**) to persist AI configurations and settings across application restarts.
 - **Real-time Feedback**: Visual "AI is thinking..." indicators, detailed in-chat error reporting, and **color-coded success/failure statuses** for Git operations to help diagnose issues at a glance.
-- **Modern UI**: Built with React, featuring a modular architecture with custom hooks (`useGit`, `useChat`), Tailwind CSS v4, and a persistent **Sidebar Navigation** system with tooltips.
+- **Modern UI**: Built with React 19, featuring a modular architecture with custom hooks (`useGit`, `useChat`), Tailwind CSS v4, and a persistent **Sidebar Navigation** system with tooltips.
 - **Security-First**: Robust input validation and path traversal protection for all Git and AI operations. Centralized path sanitization in `GitService` ensures all file access remains within the repository boundaries, sensitive information (like `apiKey`) is masked in the UI, and strict validation (like `ref` validation, `timeout` clamping, and `maxDiffLength` enforcement) is applied at the API level.
 - **Improved Chat Experience**: Automatic scrolling to the bottom of the chat window for real-time AI responses, fixed input bar for constant access, and **dedicated scrollbars** for the chat container and individual long message results. Replaced the permanent sidebar with a clean **History Modal**.
 - **Git Console**: Interactive console for monitoring Git operations in real-time.
@@ -32,7 +32,7 @@ A modern web application that combines local AI capabilities with Git repository
 
 ### Backend
 - **Node.js & Express**: Core server framework.
-- **TypeScript**: Typed development for the backend.
+- **TypeScript 6**: Typed development for the backend.
 - **LokiJS**: In-memory database with file-based persistence for settings and configuration.
 - **LLM Integration**: Support for local models (Ollama SDK) and extensible architecture for external APIs.
 - **Isomorphic-Git**: Perform Git operations in Node.js.
@@ -40,11 +40,11 @@ A modern web application that combines local AI capabilities with Git repository
 - **Http-Proxy**: Proxying requests between development servers.
 
 ### Frontend
-- **React**: Component-based UI library using modern patterns (Hooks, Layouts).
+- **React 19**: Component-based UI library using modern patterns (Hooks, Layouts).
 - **Custom Hooks**: Encapsulated logic in `useGit`, `useChat`, `useModels`, and `useChatHistory`.
 - **Tailwind CSS v4**: Utility-first styling with the latest features.
 - **Animations**: AOS (Animate On Scroll), Animate.css, and Framer Motion.
-- **Vite**: Ultra-fast frontend tooling and development server.
+- **Vite 8**: Ultra-fast frontend tooling and development server.
 - **PostCSS**: CSS transformation and Autoprefixer.
 
 ## 📋 Prerequisites
@@ -165,7 +165,7 @@ npm start
 - **Start Frontend**: `npm run client`
 - **Build All**: `npm run build`
 - **Build CSS**: `npm run build:css`
-- **Run Tests**: `npm test` (264 tests currently passing across 24 files)
+- **Run Tests**: `npm test` (267 tests currently passing across 24 files)
 - **Check Coverage**: `npm run test:coverage` (Successfully met the 75% branch coverage threshold, with core service/hook line coverage reaching 100% or near-100%.)
 
 ### API Endpoints (Core)
