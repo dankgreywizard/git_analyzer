@@ -53,6 +53,10 @@ A modern web application that combines local AI capabilities with Git repository
 - **LLM Provider**: 
   - **Local**: [Ollama](https://ollama.com/) can be used for local AI features.
   - **External**: Supports OpenAI, Anthropic, and other OpenAI-compatible APIs (**Note: External providers have not been tested at all; only the `codellama` model has been used**).
+- **Claude Code (Recommended for Development)**: This project is optimized for [Claude Code](https://claude.ai/code).
+  - Use `CLAUDE.md` in the root for project-specific commands and guidelines.
+  - Explore `.claude/rules/` for detailed development and testing standards.
+  - Use `.claude/prompts/` for reusable templates (e.g., creating new services).
 
 ## ⚙️ Configuration
 

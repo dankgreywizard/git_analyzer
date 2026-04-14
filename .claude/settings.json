@@ -1,0 +1,11 @@
+{
+  "project": "webapp",
+  "name": "AI-Powered Git Analysis Tool",
+  "autoMemoryDirectory": ".claude/projects/webapp/memory",
+  "settings": {
+    "git": {
+      "commitMessageStyle": "conventional",
+      "defaultBranch": "main"
+    }
+  }
+}
