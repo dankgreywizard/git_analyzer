@@ -21,5 +21,8 @@ repos/
 data.json
 data.json.bak
 .output.txt
-.claude/
 .junie/
+!.claude/
+!.claude/rules/
+!.claude/prompts/
+!.claude/settings.json
