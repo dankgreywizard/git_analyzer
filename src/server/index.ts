@@ -61,9 +61,9 @@ expressApp.post('/api/clone', async (req, res) => {
     try {
         const result = await gitService.cloneRepo(trimmedUrl, sanitizedDir);
         res.json({ ok: true, dir: result.dir });
-    } catch (e: any) {
-        console.error('Clone failed', e);
-        res.status(500).json({ error: e?.message || String(e) });
+    } catch (error: any) {
+        console.error('Clone failed', error);
+        res.status(500).json({ error: error?.message || String(error) });
     }
 });
 
@@ -86,9 +86,9 @@ expressApp.post('/api/open', async (req, res) => {
     try {
         const result = await gitService.openRepo(trimmedUrl, sanitizedDir);
         res.json({ ok: true, dir: result.dir });
-    } catch (e: any) {
-        console.error('Open failed', e);
-        res.status(400).json({ error: e?.message || String(e) });
+    } catch (error: any) {
+        console.error('Open failed', error);
+        res.status(400).json({ error: error?.message || String(error) });
     }
 });
 
@@ -109,9 +109,9 @@ expressApp.get('/api/repos', async (req, res) => {
         }
         const repos = await gitService.listRepos(baseDir || undefined);
         res.json({ repos });
-    } catch (e: any) {
-        console.error('List repos failed', e);
-        res.status(500).json({ error: e?.message || String(e) });
+    } catch (error: any) {
+        console.error('List repos failed', error);
+        res.status(500).json({ error: error?.message || String(error) });
     }
 });
 
@@ -141,9 +141,9 @@ expressApp.post('/api/checkout-commits', async (req, res) => {
             results.push({ oid, branch: result.branch });
         }
         res.json({ results });
-    } catch (e: any) {
-        console.error('Checkout commits failed', e);
-        res.status(500).json({ error: e?.message || String(e) });
+    } catch (error: any) {
+        console.error('Checkout commits failed', error);
+        res.status(500).json({ error: error?.message || String(error) });
     }
 });
 
@@ -165,9 +165,9 @@ expressApp.post('/api/reset-repo', async (req, res) => {
         }
         const result = await gitService.reset(sanitizedDir, { deleteTempBranches: !!deleteTempBranches });
         res.json(result);
-    } catch (e: any) {
-        console.error('Reset repository failed', e);
-        res.status(500).json({ error: e?.message || String(e) });
+    } catch (error: any) {
+        console.error('Reset repository failed', error);
+        res.status(500).json({ error: error?.message || String(error) });
     }
 });
 
@@ -228,17 +228,17 @@ expressApp.get('/api/log', async (req, res) => {
         // Security check for log endpoint
         try {
             await gitService.openRepo(undefined, dirToUse);
-        } catch (e: any) {
-            return res.status(400).json({ error: `Invalid repository path: ${e.message}` });
+        } catch (error: any) {
+            return res.status(400).json({ error: `Invalid repository path: ${error.message}` });
         }
 
         // Enhanced: include changed files per commit
         const config = await configService.getConfig();
         const { commits, note } = await gitService.readLogWithFiles(dirToUse, { depth, ref, maxDiffLength: config.maxDiffLength });
         res.json({ commits, ...(note ? { note } : {}) });
-    } catch (e: any) {
-        console.error('Read log failed', e);
-        res.status(500).json({ error: e?.message || String(e) });
+    } catch (error: any) {
+        console.error('Read log failed', error);
+        res.status(500).json({ error: error?.message || String(error) });
     }
 });
 
@@ -252,9 +252,9 @@ expressApp.get('/api/ollama/models', async (_req, res) => {
         const aiService = await getAIService();
         const models = await aiService.listModels();
         res.json({ models });
-    } catch (e: any) {
-        console.error('List models failed', e);
-        res.status(500).json({ error: e?.message || String(e) });
+    } catch (error: any) {
+        console.error('List models failed', error);
+        res.status(500).json({ error: error?.message || String(error) });
     }
 });
 
@@ -274,11 +274,11 @@ expressApp.post('/api/analyze-commits', async (req: Request, res: Response) => {
         }
         
         // Basic validation for commit objects
-        for (const c of commits) {
-            if (!c || typeof c !== 'object') {
+        for (const commitObj of commits) {
+            if (!commitObj || typeof commitObj !== 'object') {
                 return res.status(400).json({ error: 'Invalid commit object in list' });
             }
-            const oid = c.oid ?? c.commit?.oid;
+            const oid = commitObj.oid ?? commitObj.commit?.oid;
             if (!oid || typeof oid !== 'string' || !/^[0-9a-f]{7,40}$/i.test(oid)) {
                 return res.status(400).json({ error: `Invalid commit OID in analysis list: ${oid}` });
             }
@@ -297,23 +297,23 @@ expressApp.post('/api/analyze-commits', async (req: Request, res: Response) => {
         // Compact commit entries to avoid huge payloads.
         // We ensure all fields are stringified or appropriately typed for the LLM.
         const cap = typeof maxCommits === 'number' && Number.isFinite(maxCommits) ? Math.min(Math.max(1, Math.floor(maxCommits)), 1000) : 100;
-        const compact = (commits as any[]).slice(0, cap).map((c, i) => {
-            const oid = String(c.oid || (c.commit && c.commit.oid) || '').slice(0, 12);
-            const author = c.author?.name || c.commit?.author?.name || 'Unknown';
-            const email = c.author?.email || c.commit?.author?.email || undefined;
-            const timestamp = c.author?.timestamp || c.commit?.author?.timestamp;
+        const compact = (commits as any[]).slice(0, cap).map((commitEntry, index) => {
+            const oid = String(commitEntry.oid || (commitEntry.commit && commitEntry.commit.oid) || '').slice(0, 12);
+            const author = commitEntry.author?.name || commitEntry.commit?.author?.name || 'Unknown';
+            const email = commitEntry.author?.email || commitEntry.commit?.author?.email || undefined;
+            const timestamp = commitEntry.author?.timestamp || commitEntry.commit?.author?.timestamp;
             const date = timestamp ? new Date(timestamp * 1000).toISOString() : undefined;
-            const rawMessage = String(c.message || (c.commit && c.commit.message) || '');
+            const rawMessage = String(commitEntry.message || (commitEntry.commit && commitEntry.commit.message) || '');
             const subject = rawMessage.split('\n')[0];
             const message = rawMessage.slice(0, 4000);
             
-            const files = Array.isArray(c.files) ? c.files.slice(0, 500).map((f: any) => ({
-                path: String(f.path || ''),
-                status: f.status,
-                diff: f.diff ? String(f.diff).slice(0, 8000) : undefined
+            const files = Array.isArray(commitEntry.files) ? commitEntry.files.slice(0, 500).map((fileEntry: any) => ({
+                path: String(fileEntry.path || ''),
+                status: fileEntry.status,
+                diff: fileEntry.diff ? String(fileEntry.diff).slice(0, 8000) : undefined
             })) : [];
 
-            return { index: i, oid, author, email, date, subject, message, files };
+            return { index: index, oid, author, email, date, subject, message, files };
         });
 
         const systemPrompt = config.systemPrompt || `You are an expert code reviewer. Analyze the following commits and provide a comprehensive review:
@@ -356,13 +356,13 @@ Your tone should be professional and constructive. Use the provided diffs to giv
         }
 
         await streamAIResponse(req, res, stream);
-    } catch (e: any) {
-        console.error('Analyze commits failed', e);
+    } catch (error: any) {
+        console.error('Analyze commits failed', error);
         if (res.headersSent) {
-            res.write(`\n[Analysis failed: ${e?.message || String(e)}]\n`);
+            res.write(`\n[Analysis failed: ${error?.message || String(error)}]\n`);
             res.end();
         } else {
-            res.status(500).json({ error: e?.message || String(e) });
+            res.status(500).json({ error: error?.message || String(error) });
         }
     }
 });
@@ -413,9 +413,9 @@ expressApp.post('/api/config', async (req, res) => {
 
         await configService.updateConfig(sanitized);
         res.json({ ok: true });
-    } catch (e: any) {
-        console.error('Update config failed', e);
-        res.status(500).json({ error: e?.message || String(e) });
+    } catch (error: any) {
+        console.error('Update config failed', error);
+        res.status(500).json({ error: error?.message || String(error) });
     }
 });
 

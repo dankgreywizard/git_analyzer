@@ -89,10 +89,10 @@ export default function SettingsView() {
 
     /**
      * Saves the application configuration to the server.
-     * @param e The form event.
+     * @param event The form event.
      */
-    const handleSave = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleSave = async (event: React.FormEvent) => {
+        event.preventDefault();
         setSaving(true);
         setStatus({ message: '', type: '' });
         try {

@@ -83,13 +83,13 @@ export default function GitConsole({ entries = [], onClear }: GitConsoleProps) {
 
 /**
  * Safely stringifies a value to JSON, falling back to a string representation if it fails.
- * @param v The value to stringify.
+ * @param value The value to stringify.
  * @returns The string representation of the value.
  */
-function safeStringify(v: any) {
+function safeStringify(value: any) {
   try {
-    return JSON.stringify(v, null, 2);
+    return JSON.stringify(value, null, 2);
   } catch {
-    return String(v);
+    return String(value);
   }
 }
