@@ -68,8 +68,8 @@ export function useGit({
 
     // Filter to selected commits if any are selected (and not overridden)
     const forAnalysis = !overriddenCommits && selectedCommitOids.size > 0
-      ? commitsToAnalyze.filter((c) => {
-          const oid = c?.oid || c?.commit?.oid;
+      ? commitsToAnalyze.filter((commitEntry) => {
+          const oid = commitEntry?.oid || commitEntry?.commit?.oid;
           return oid && selectedCommitOids.has(oid);
         })
       : commitsToAnalyze;
@@ -85,9 +85,9 @@ export function useGit({
     // Build an author list summary
     const authorsArr = Array.from(new Set(
       forAnalysis
-        .map((c) => (c?.author?.name || c?.commit?.author?.name || 'Unknown'))
-        .map((s) => (typeof s === 'string' ? s.trim() : 'Unknown'))
-        .filter((s) => s && s.length > 0)
+        .map((commitEntry) => (commitEntry?.author?.name || commitEntry?.commit?.author?.name || 'Unknown'))
+        .map((authorName) => (typeof authorName === 'string' ? authorName.trim() : 'Unknown'))
+        .filter((authorName) => authorName && authorName.length > 0)
     ));
     const shown = authorsArr.slice(0, 10);
     const authorsText = shown.join(', ') + (authorsArr.length > 10 ? `, +${authorsArr.length - 10} more` : '');
@@ -112,7 +112,7 @@ export function useGit({
       analyzeCommitsWithAI();
       return;
     }
-    const lastOp = [...gitEntries].reverse().find(e => (e.op === 'open' || e.op === 'clone') && e.status === 'success');
+    const lastOp = [...gitEntries].reverse().find(entry => (entry.op === 'open' || entry.op === 'clone') && entry.status === 'success');
     if (!lastOp || !lastOp.data?.dir) {
       updateStatus('No active repository to checkout from', 'red');
       return;
@@ -125,13 +125,13 @@ export function useGit({
     updateStatus(`Checking out ${oids.length} commits...`, 'yellow');
     
     try {
-      const res = await fetch('/api/checkout-commits', {
+      const response = await fetch('/api/checkout-commits', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ dir, commits: oids }),
       });
-      const data = await res.json();
-      if (res.ok) {
+      const data = await response.json();
+      if (response.ok) {
         setGitEntries(prev => [...prev, {
           id: String(Date.now()) + Math.random().toString(36).slice(2),
           time: Date.now(),
@@ -144,8 +144,8 @@ export function useGit({
         
         // Proceed to analysis
         // We pass the currently selected commits to ensure consistency
-        const forAnalysis = commitLog.filter((c) => {
-          const oid = c?.oid || c?.commit?.oid;
+        const forAnalysis = commitLog.filter((commitEntry) => {
+          const oid = commitEntry?.oid || commitEntry?.commit?.oid;
           return oid && selectedCommitOids.has(oid);
         });
         analyzeCommitsWithAI(forAnalysis);
@@ -161,14 +161,14 @@ export function useGit({
         }]);
         updateStatus('Checkout failed', 'red');
       }
-    } catch (e: any) {
+    } catch (error: any) {
       setGitEntries(prev => [...prev, {
         id: String(Date.now()) + Math.random().toString(36).slice(2),
         time: Date.now(),
         op: 'checkout-multiple',
         status: 'error',
         request: { dir, commits: oids },
-        error: e?.message || String(e)
+        error: error?.message || String(error)
       }]);
       updateStatus('Checkout failed', 'red');
     } finally {
@@ -181,7 +181,7 @@ export function useGit({
    * @param deleteTempBranches Whether to delete the temporary branches created during analysis.
    */
   const resetRepository = useCallback(async (deleteTempBranches = true) => {
-    const lastOp = [...gitEntries].reverse().find(e => (e.op === 'open' || e.op === 'clone' || e.op === 'checkout-multiple') && e.status === 'success');
+    const lastOp = [...gitEntries].reverse().find(entry => (entry.op === 'open' || entry.op === 'clone' || entry.op === 'checkout-multiple') && entry.status === 'success');
     if (!lastOp || !lastOp.request?.dir) {
       updateStatus('No active repository to reset', 'red');
       return;
@@ -192,13 +192,13 @@ export function useGit({
     updateStatus('Resetting repository...', 'yellow');
 
     try {
-      const res = await fetch('/api/reset-repo', {
+      const response = await fetch('/api/reset-repo', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ dir, deleteTempBranches }),
       });
-      const data = await res.json();
-      if (res.ok) {
+      const data = await response.json();
+      if (response.ok) {
         setGitEntries(prev => [...prev, {
           id: String(Date.now()) + Math.random().toString(36).slice(2),
           time: Date.now(),
@@ -212,8 +212,8 @@ export function useGit({
         const errorMsg = data?.error || 'Reset failed';
         updateStatus(`Reset failed: ${errorMsg}`, 'red');
       }
-    } catch (e: any) {
-      updateStatus(`Reset failed: ${e?.message || String(e)}`, 'red');
+    } catch (error: any) {
+      updateStatus(`Reset failed: ${error?.message || String(error)}`, 'red');
     } finally {
       setGitLoading(false);
     }

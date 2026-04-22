@@ -51,13 +51,13 @@ export default function GitOperations({
   const fetchRepos = useCallback(async () => {
     setLoadingRepos(true);
     try {
-      const res = await fetch(`/api/repos?baseDir=${encodeURIComponent(baseDir)}`);
-      const data = await res.json();
-      if (res.ok && Array.isArray(data.repos)) {
+      const response = await fetch(`/api/repos?baseDir=${encodeURIComponent(baseDir)}`);
+      const data = await response.json();
+      if (response.ok && Array.isArray(data.repos)) {
         setLocalRepos(data.repos);
       }
-    } catch (e) {
-      console.error("Failed to fetch repos", e);
+    } catch (error) {
+      console.error("Failed to fetch repos", error);
     } finally {
       setLoadingRepos(false);
     }
@@ -95,21 +95,21 @@ export default function GitOperations({
     onBusyChange?.(true);
     updateStatus?.("Cloning...", "yellow");
     try {
-      const res = await fetch("/api/clone", {
+      const response = await fetch("/api/clone", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url: repoUrl }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || "Clone failed");
+      const data = await response.json();
+      if (!response.ok) throw new Error(data?.error || "Clone failed");
       pushResult({ op: "clone", status: "success", request: { url: repoUrl }, data });
       updateStatus?.("Clone successful. Fetching log...", "green");
 
       // Automatically trigger log after cloning
       await handleLog(true);
       updateStatus?.("Log fetched successfully", "green");
-    } catch (e: any) {
-      const errorMsg = e?.message || String(e);
+    } catch (error: any) {
+      const errorMsg = error?.message || String(error);
       pushResult({ op: "clone", status: "error", request: { url: repoUrl }, error: errorMsg });
       updateStatus?.(`Clone failed: ${errorMsg}`, "red");
     } finally {
@@ -136,21 +136,21 @@ export default function GitOperations({
         let isUrl = false;
         try { new URL(repoUrl); isUrl = true; } catch {}
 
-        const res = await fetch("/api/open", {
+        const response = await fetch("/api/open", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(isUrl ? { url: repoUrl } : { dir: repoUrl }),
         });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data?.error || "Open failed");
+        const data = await response.json();
+        if (!response.ok) throw new Error(data?.error || "Open failed");
         pushResult({ op: "open", status: "success", request: { url: isUrl ? repoUrl : undefined, dir: !isUrl ? repoUrl : undefined }, data });
         updateStatus?.("Repository opened successfully. Fetching log...", "green");
 
         // Automatically trigger log after opening
         await handleLog(true);
         updateStatus?.("Log fetched successfully", "green");
-      } catch (e: any) {
-      const errorMsg = e?.message || String(e);
+      } catch (error: any) {
+      const errorMsg = error?.message || String(error);
       pushResult({ op: "open", status: "error", request: { url: repoUrl }, error: errorMsg });
       updateStatus?.(`Open failed: ${errorMsg}`, "red");
     } finally {
@@ -185,14 +185,14 @@ export default function GitOperations({
       if (reqLimit > 1000) reqLimit = 1000;
 
       const queryParam = isUrl ? `url=${encodeURIComponent(repoUrl)}` : `dir=${encodeURIComponent(repoUrl)}`;
-      const res = await fetch(`/api/log?${queryParam}&limit=${reqLimit}`);
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || "Log failed");
+      const response = await fetch(`/api/log?${queryParam}&limit=${reqLimit}`);
+      const data = await response.json();
+      if (!response.ok) throw new Error(data?.error || "Log failed");
       pushResult({ op: "log", status: "success", request: { url: repoUrl, limit: reqLimit }, data });
       onLogData?.(data);
       updateStatus?.("Ready", "green");
-    } catch (e: any) {
-      const errorMsg = e?.message || String(e);
+    } catch (error: any) {
+      const errorMsg = error?.message || String(error);
       pushResult({ op: "log", status: "error", request: { url: repoUrl, limit }, error: errorMsg });
       updateStatus?.(`Log failed: ${errorMsg}`, "red");
     } finally {

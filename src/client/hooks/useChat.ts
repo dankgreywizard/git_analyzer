@@ -39,27 +39,27 @@ export function useChat() {
    * Cancels the current AI request.
    */
   const handleCancel = useCallback(() => {
-    const ctrl = abortRef.current;
-    if (ctrl) ctrl.abort();
+    const controller = abortRef.current;
+    if (controller) controller.abort();
   }, []);
 
   /**
    * Streams the AI response from a Fetch API Response object.
-   * @param res The Fetch API Response object.
+   * @param response The Fetch API Response object.
    * @param controller The AbortController for the request.
    * @param onUpdateStatus Callback to update the application status.
    * @param scrollToBottom Callback to scroll the chat to the bottom.
    * @param onSuccess Callback to execute on successful completion.
    */
   const streamResponse = useCallback(async (
-    res: Response,
+    response: Response,
     controller: AbortController,
     onUpdateStatus?: (text: string, color: "gray" | "yellow" | "green" | "red") => void,
     scrollToBottom?: () => void,
     onSuccess?: () => void
   ) => {
     onUpdateStatus?.("Streaming...", "yellow");
-    const reader = res.body?.getReader();
+    const reader = response.body?.getReader();
     if (!reader) throw new Error("Streaming not supported");
     const decoder = new TextDecoder();
     let aiText = "";
@@ -161,28 +161,28 @@ export function useChat() {
     abortRef.current = controller;
 
     try {
-      const payload = messages.concat({ role: "user", content: userInput }).map((m) => {
-        const { role, content } = m;
+      const payload = messages.concat({ role: "user", content: userInput }).map((message) => {
+        const { role, content } = message;
         return { role, content };
       });
       console.log("Sending chat request:", payload);
-      const res = await fetch("/read", {
+      const response = await fetch("/read", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
         signal: controller.signal,
       });
-      console.log(`Chat response status: ${res.status} ${res.statusText}`);
-      if (res.ok) {
-        await streamResponse(res, controller, onUpdateStatus, scrollToBottom, onSuccess);
+      console.log(`Chat response status: ${response.status} ${response.statusText}`);
+      if (response.ok) {
+        await streamResponse(response, controller, onUpdateStatus, scrollToBottom, onSuccess);
       } else {
-        const errorMsg = res.statusText || `Request failed with status ${res.status}`;
-        console.error("Chat request failed:", res.status, errorMsg);
+        const errorMsg = response.statusText || `Request failed with status ${response.status}`;
+        console.error("Chat request failed:", response.status, errorMsg);
         handleError(errorMsg, controller, onUpdateStatus);
       }
-    } catch (e: any) {
-      console.error("Chat request error:", e);
-      handleError(e?.message || String(e), controller, onUpdateStatus);
+    } catch (error: any) {
+      console.error("Chat request error:", error);
+      handleError(error?.message || String(error), controller, onUpdateStatus);
     } finally {
       abortRef.current = null;
     }
@@ -211,23 +211,23 @@ export function useChat() {
     try {
       setMessages((prev) => [...prev, { role: 'assistant', content: '' }]);
       console.log("Sending analysis request:", payload);
-      const res = await fetch('/api/analyze-commits', {
+      const response = await fetch('/api/analyze-commits', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
         signal: controller.signal,
       });
-      console.log(`Analysis response status: ${res.status} ${res.statusText}`);
-      if (res.ok) {
-        await streamResponse(res, controller, onUpdateStatus, scrollToBottom);
+      console.log(`Analysis response status: ${response.status} ${response.statusText}`);
+      if (response.ok) {
+        await streamResponse(response, controller, onUpdateStatus, scrollToBottom);
       } else {
-        const errorMsg = (await res.text()) || `Analyze failed with status ${res.status}`;
-        console.error("Analysis request failed:", res.status, errorMsg);
+        const errorMsg = (await response.text()) || `Analyze failed with status ${response.status}`;
+        console.error("Analysis request failed:", response.status, errorMsg);
         handleError(errorMsg, controller, onUpdateStatus, true);
       }
-    } catch (e: any) {
-      console.error("Analysis request error:", e);
-      handleError(e?.message || String(e), controller, onUpdateStatus, true);
+    } catch (error: any) {
+      console.error("Analysis request error:", error);
+      handleError(error?.message || String(error), controller, onUpdateStatus, true);
     } finally {
       abortRef.current = null;
     }

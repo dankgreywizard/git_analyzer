@@ -35,24 +35,24 @@ export const streamAIResponse = async (req: Request, res: Response, stream: any)
         if (!res.headersSent) {
             res.setHeader('Content-Type', 'text/plain; charset=utf-8');
         }
-        for await (const part of stream) {
+        for await (const streamChunk of stream) {
             if (isCancelled) {
                 console.log('Stopping AI stream due to client disconnection');
                 break;
             }
-            const chunk = (part && (part as any).message && (part as any).message.content) ?? (part as any)?.response ?? (part as any)?.content ?? '';
+            const chunk = (streamChunk && (streamChunk as any).message && (streamChunk as any).message.content) ?? (streamChunk as any)?.response ?? (streamChunk as any)?.content ?? '';
             if (chunk) {
                 res.write(chunk);
             }
         }
         if (!isCancelled) res.end();
-    } catch (e: any) {
-        console.error("Error during AI response streaming:", e);
+    } catch (streamError: any) {
+        console.error("Error during AI response streaming:", streamError);
         if (res.headersSent) {
-            res.write(`\n[Streaming error: ${e?.message || String(e)}]\n`);
+            res.write(`\n[Streaming error: ${streamError?.message || String(streamError)}]\n`);
             res.end();
         } else {
-            res.status(500).json({ error: `AI error: ${e?.message || String(e)}` });
+            res.status(500).json({ error: `AI error: ${streamError?.message || String(streamError)}` });
         }
     }
 };
@@ -72,32 +72,32 @@ export const ollamaResponse = async (req: Request, resp: Response) => {
         return resp.status(400).json({ error: "Invalid request body: expected array of objects or strings" });
     }
     const messageArray: Message[] = [];
-    for (let x = 0; x < content.length; x++) {
-        let item = content[x];
-        console.log(`Processing message at index ${x}, type: ${typeof item}`);
+    for (let index = 0; index < content.length; index++) {
+        const messageItem = content[index];
+        console.log(`Processing message at index ${index}, type: ${typeof messageItem}`);
         let parsed: any = null;
-        if (typeof item === 'string') {
+        if (typeof messageItem === 'string') {
             try {
-                parsed = JSON.parse(item);
-            } catch (e) {
-                console.error(`Failed to parse message history at index ${x}: ${item}`);
-                return resp.status(400).json({ error: `Failed to parse message history at index ${x}` });
+                parsed = JSON.parse(messageItem);
+            } catch (parseError) {
+                console.error(`Failed to parse message history at index ${index}: ${messageItem}`);
+                return resp.status(400).json({ error: `Failed to parse message history at index ${index}` });
             }
-        } else if (typeof item === 'object' && item !== null) {
-            parsed = item;
+        } else if (typeof messageItem === 'object' && messageItem !== null) {
+            parsed = messageItem;
         } else {
-            console.error(`Invalid message at index ${x}: expected string or object, got ${typeof item}`);
-            return resp.status(400).json({ error: `Invalid message at index ${x}: expected string or object` });
+            console.error(`Invalid message at index ${index}: expected string or object, got ${typeof messageItem}`);
+            return resp.status(400).json({ error: `Invalid message at index ${index}: expected string or object` });
         }
 
         if (!parsed || typeof parsed !== 'object' || !parsed.role || !parsed.content) {
-            console.error(`Invalid message structure at index ${x}:`, parsed);
-            return resp.status(400).json({ error: `Invalid message structure at index ${x}` });
+            console.error(`Invalid message structure at index ${index}:`, parsed);
+            return resp.status(400).json({ error: `Invalid message structure at index ${index}` });
         }
         const role = String(parsed.role);
         if (role !== 'user' && role !== 'assistant' && role !== 'system') {
-            console.error(`Invalid role at index ${x}: ${role}`);
-            return resp.status(400).json({ error: `Invalid role at index ${x}: ${role}` });
+            console.error(`Invalid role at index ${index}: ${role}`);
+            return resp.status(400).json({ error: `Invalid role at index ${index}: ${role}` });
         }
         messageArray.push({
             role: role as "user" | "assistant" | "system",
@@ -126,12 +126,12 @@ export const ollamaResponse = async (req: Request, resp: Response) => {
         });
         
         await streamAIResponse(req, resp, response);
-    } catch (e: any) {
-        console.error("Error calling AI service:", e);
+    } catch (aiServiceError: any) {
+        console.error("Error calling AI service:", aiServiceError);
         if (!resp.headersSent) {
-            resp.status(500).json({ error: `AI service error: ${e?.message || String(e)}` });
+            resp.status(500).json({ error: `AI service error: ${aiServiceError?.message || String(aiServiceError)}` });
         } else {
-            resp.write(`\n[AI service error: ${e?.message || String(e)}]\n`);
+            resp.write(`\n[AI service error: ${aiServiceError?.message || String(aiServiceError)}]\n`);
             resp.end();
         }
     }

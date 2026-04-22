@@ -23,6 +23,22 @@ A modern web application that combines local AI capabilities with Git repository
 - **Security-First**: Robust input validation and path traversal protection for all Git and AI operations. Centralized path sanitization in `GitService` ensures all file access remains within the repository boundaries, sensitive information (like `apiKey`) is masked in the UI, and strict validation (like `ref` validation, `timeout` clamping, and `maxDiffLength` enforcement) is applied at the API level.
 - **Improved Chat Experience**: Automatic scrolling to the bottom of the chat window for real-time AI responses, fixed input bar for constant access, and **dedicated scrollbars** for the chat container and individual long message results. Replaced the permanent sidebar with a clean **History Modal**.
 - **Git Console**: Interactive console for monitoring Git operations in real-time.
+- **Improved Code Readability**: Systematically renamed generic variables to descriptive, context-specific names across the entire codebase:
+  - `e` → `error`, `event`, `parseError`, `streamError`, `aiServiceError`
+  - `res` → `response`
+  - `c`, `m` → `commitEntry`, `message`, `baseCommit`, `commitObj`
+  - `ctrl` → `controller`
+  - `i`, `j` → `lineIdxA`, `lineIdxB`
+  - `v` → `value`
+  - `b` → `branchName`, `branchToDelete`
+  - `s` → `authorName`
+  - `f` → `fileEntry`
+  - `x` → `index`
+  - `u` → `parsedUrl`
+  - `d` → `targetDir`, `baseWithTrailingSlash`
+  - `list` → `modelList`
+  - `error` → `errorData` (when shadowed)
+  - This improves maintainability and makes the code self-documenting.
 
 ## 🛠 Tech Stack
 
@@ -41,7 +57,7 @@ A modern web application that combines local AI capabilities with Git repository
 
 ### Frontend
 - **React 19**: Component-based UI library using modern patterns (Hooks, Layouts).
-- **Custom Hooks**: Encapsulated logic in `useGit`, `useChat`, `useModels`, and `useChatHistory`.
+- **Custom Hooks**: Encapsulated logic in `useGit`, `useChat`, `useModels`, and `useChatHistory`. All hooks use descriptive variable naming for improved code clarity.
 - **Tailwind CSS v4**: Utility-first styling with the latest features.
 - **Animations**: AOS (Animate On Scroll), Animate.css, and Framer Motion.
 - **Vite 8**: Ultra-fast frontend tooling and development server.

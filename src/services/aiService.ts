@@ -54,15 +54,15 @@ export abstract class BaseAIService implements AIService {
 
     /**
      * Handles errors from AI service calls and provides context.
-     * @param e The error object.
+     * @param error The error object.
      * @param context A description of where the error occurred.
      * @param timeout The timeout value in milliseconds, if applicable.
      */
-    protected handleError(e: any, context: string, timeout?: number): never {
-        if (e.name === 'AbortError') {
+    protected handleError(error: any, context: string, timeout?: number): never {
+        if (error.name === 'AbortError') {
             throw new Error(`AI request timed out after ${timeout}ms`);
         }
-        throw new Error(`${context} API error: ${e.message || String(e)}`);
+        throw new Error(`${context} API error: ${error.message || String(error)}`);
     }
 }
 
@@ -99,22 +99,22 @@ export class OllamaAIService extends BaseAIService {
                 };
             }
             return await this.client.chat(chatOptions);
-        } catch (e: any) {
-            this.handleError(e, 'Ollama chat', options.timeout);
+        } catch (error: any) {
+            this.handleError(error, 'Ollama chat', options.timeout);
         }
     }
 
     async listModels(): Promise<string[]> {
         try {
-            const list: any = await this.client.list();
-            return Array.isArray(list?.models) ? list.models.map((m: any) => m.name).filter(Boolean) : [];
-        } catch (e: any) {
-            if (e.cause?.code === 'ECONNREFUSED') {
+            const modelList: any = await this.client.list();
+            return Array.isArray(modelList?.models) ? modelList.models.map((model: any) => model.name).filter(Boolean) : [];
+        } catch (error: any) {
+            if (error.cause?.code === 'ECONNREFUSED') {
                 // @ts-ignore - access private config for better error message
                 const host = this.client.config?.host || 'http://localhost:11434';
                 console.error(`Failed to connect to Ollama at ${host}. If running in Docker, see README for connection instructions.`);
             } else {
-                console.error('Failed to list Ollama models', e);
+                console.error('Failed to list Ollama models', error);
             }
             return [];
         }
@@ -164,8 +164,8 @@ export class OllamaAIService extends BaseAIService {
             if (timeoutId) clearTimeout(timeoutId);
 
             if (!response.ok) {
-                const error = await response.json().catch(() => ({}));
-                throw new Error(`${response.statusText} ${JSON.stringify(error)}`);
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(`${response.statusText} ${JSON.stringify(errorData)}`);
             }
 
             if (options.stream) {
@@ -173,8 +173,8 @@ export class OllamaAIService extends BaseAIService {
             } else {
                 return await response.json();
             }
-        } catch (e: any) {
-            this.handleError(e, 'External AI', options.timeout);
+        } catch (error: any) {
+            this.handleError(error, 'External AI', options.timeout);
         } finally {
             if (timeoutId) clearTimeout(timeoutId);
         }
@@ -210,8 +210,8 @@ export class OllamaAIService extends BaseAIService {
                                 content: data.choices[0]?.delta?.content || ''
                             }
                         };
-                    } catch (e) {
-                        console.error('Error parsing stream chunk', e);
+                    } catch (parseError) {
+                        console.error('Error parsing stream chunk', parseError);
                     }
                 }
             }

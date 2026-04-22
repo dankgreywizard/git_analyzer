@@ -116,15 +116,15 @@ export class GitService {
       if (!stats.isDirectory()) {
         throw new Error(`${targetDir} is not a directory`);
       }
-    } catch (e: any) {
-      if (e.code === 'ENOENT') throw new Error(`Directory ${targetDir} does not exist`);
-      throw e;
+    } catch (error: any) {
+      if (error.code === 'ENOENT') throw new Error(`Directory ${targetDir} does not exist`);
+      throw error;
     }
 
     // Check if it's a git repo by resolving HEAD
     try {
       await git.resolveRef({ fs, dir: targetDir, ref: 'HEAD' });
-    } catch (e) {
+    } catch (error) {
       throw new Error(`${targetDir} is not a valid git repository`);
     }
 
@@ -147,9 +147,9 @@ export class GitService {
       // Create branch if it doesn't exist
       try {
         await git.branch({ fs, dir: targetDir, ref: checkoutBranch, object: ref });
-      } catch (e: any) {
-        if (e.code !== 'AlreadyExistsError') {
-          throw e;
+      } catch (error: any) {
+        if (error.code !== 'AlreadyExistsError') {
+          throw error;
         }
       }
 
@@ -162,9 +162,9 @@ export class GitService {
       });
 
       return { branch: checkoutBranch };
-    } catch (e: any) {
-      console.error(`Checkout failed for ${ref}`, e);
-      throw new Error(`Checkout failed for ${ref}: ${e.message}`);
+    } catch (error: any) {
+      console.error(`Checkout failed for ${ref}`, error);
+      throw new Error(`Checkout failed for ${ref}: ${error.message}`);
     }
   }
 
@@ -185,15 +185,15 @@ export class GitService {
             // Check if it's a git repo by resolving HEAD
             await git.resolveRef({ fs, dir: dirPath, ref: 'HEAD' });
             repos.push(entry.name);
-          } catch (e) {
+          } catch (error) {
             // Not a valid git repo, skip
           }
         }
       }
       return repos;
-    } catch (e: any) {
-      if (e.code === 'ENOENT') return [];
-      throw e;
+    } catch (error: any) {
+      if (error.code === 'ENOENT') return [];
+      throw error;
     }
   }
 
@@ -218,28 +218,28 @@ export class GitService {
     await this.deepenIfNeeded(normDir, ref, depth).catch(() => {});
     const baseCommits = await git.log({ fs, dir: normDir, ref: resolved, depth });
     const result: any[] = [];
-    for (const c of baseCommits) {
-      const oid = (c as any).oid;
-      const parents: string[] = (c as any).commit?.parent || [];
+    for (const baseCommit of baseCommits) {
+      const oid = (baseCommit as any).oid;
+      const parents: string[] = (baseCommit as any).commit?.parent || [];
       const parentOid = parents[0] || undefined;
       let files: any[] = [];
       try {
         files = parentOid ? await this.listChangedFiles(normDir, parentOid, oid, maxDiffLength) : await this.listChangedFiles(normDir, undefined, oid, maxDiffLength);
-      } catch (e: any) {
+      } catch (error: any) {
         // If the entire listing fails, we provide a descriptive error message as a dummy file entry
         // This ensures the user knows why file data is missing for this commit.
         files = [{ 
           path: 'error', 
           status: 'modified', 
-          diff: `Failed to list changed files for this commit: ${e?.message || String(e)}` 
+          diff: `Failed to list changed files for this commit: ${error?.message || String(error)}` 
         }];
       }
       result.push({
         oid,
-        commit: (c as any).commit,
-        author: (c as any).author,
-        committer: (c as any).committer,
-        message: (c as any).commit?.message,
+        commit: (baseCommit as any).commit,
+        author: (baseCommit as any).author,
+        committer: (baseCommit as any).committer,
+        message: (baseCommit as any).commit?.message,
         files,
       });
     }
@@ -276,38 +276,38 @@ export class GitService {
     }
 
     diff = `File: ${filepath} (modified)\n--- old\n+++ new\n`;
-    let i = 0, j = 0;
-    while (i < linesA.length || j < linesB.length) {
-      if (i < linesA.length && j < linesB.length && linesA[i] === linesB[j]) {
-        diff += `  ${linesA[i]}\n`;
-        i++;
-        j++;
+    let lineIdxA = 0, lineIdxB = 0;
+    while (lineIdxA < linesA.length || lineIdxB < linesB.length) {
+      if (lineIdxA < linesA.length && lineIdxB < linesB.length && linesA[lineIdxA] === linesB[lineIdxB]) {
+        diff += `  ${linesA[lineIdxA]}\n`;
+        lineIdxA++;
+        lineIdxB++;
       } else {
         let lookAhead = 1;
         let foundMatch = false;
-        while (lookAhead < 10 && (i + lookAhead < linesA.length || j + lookAhead < linesB.length)) {
-          if (i + lookAhead < linesA.length && linesA[i + lookAhead] === linesB[j]) {
-            for (let k = 0; k < lookAhead; k++) diff += `-${linesA[i + k]}\n`;
-            i += lookAhead;
+        while (lookAhead < 10 && (lineIdxA + lookAhead < linesA.length || lineIdxB + lookAhead < linesB.length)) {
+          if (lineIdxA + lookAhead < linesA.length && linesA[lineIdxA + lookAhead] === linesB[lineIdxB]) {
+            for (let k = 0; k < lookAhead; k++) diff += `-${linesA[lineIdxA + k]}\n`;
+            lineIdxA += lookAhead;
             foundMatch = true;
             break;
           }
-          if (j + lookAhead < linesB.length && linesA[i] === linesB[j + lookAhead]) {
-            for (let k = 0; k < lookAhead; k++) diff += `+${linesB[j + k]}\n`;
-            j += lookAhead;
+          if (lineIdxB + lookAhead < linesB.length && linesA[lineIdxA] === linesB[lineIdxB + lookAhead]) {
+            for (let k = 0; k < lookAhead; k++) diff += `+${linesB[lineIdxB + k]}\n`;
+            lineIdxB += lookAhead;
             foundMatch = true;
             break;
           }
           lookAhead++;
         }
         if (!foundMatch) {
-          if (i < linesA.length) {
-            diff += `-${linesA[i]}\n`;
-            i++;
+          if (lineIdxA < linesA.length) {
+            diff += `-${linesA[lineIdxA]}\n`;
+            lineIdxA++;
           }
-          if (j < linesB.length) {
-            diff += `+${linesB[j]}\n`;
-            j++;
+          if (lineIdxB < linesB.length) {
+            diff += `+${linesB[lineIdxB]}\n`;
+            lineIdxB++;
           }
         }
       }
@@ -362,9 +362,9 @@ export class GitService {
           const textA = new TextDecoder().decode(contentA);
           const textB = new TextDecoder().decode(contentB);
           diff = this.generateSimpleDiff(filepath, status, textA, textB, maxDiffLength);
-        } catch (e: any) {
+        } catch (error: any) {
           // Identify potential git limits or data-related issues
-          const msg = e?.message || String(e);
+          const msg = error?.message || String(error);
           if (msg.includes('too large') || msg.includes('limit')) {
             diff = `File: ${filepath} skipped: Git limit reached or file too large for analysis.`;
           } else if (msg.includes('binary')) {
@@ -419,20 +419,20 @@ export class GitService {
       // Optionally delete all temporary branches (branch-*)
       if (options?.deleteTempBranches) {
         const branches = await git.listBranches({ fs, dir: targetDir });
-        const tempBranches = branches.filter((b) => b.startsWith('branch-'));
-        for (const b of tempBranches) {
+        const tempBranches = branches.filter((branchName) => branchName.startsWith('branch-'));
+        for (const branchToDelete of tempBranches) {
           try {
-            await git.deleteBranch({ fs, dir: targetDir, ref: b });
-          } catch (e) {
-            console.error(`Failed to delete branch ${b}`, e);
+            await git.deleteBranch({ fs, dir: targetDir, ref: branchToDelete });
+          } catch (error) {
+            console.error(`Failed to delete branch ${branchToDelete}`, error);
           }
         }
       }
 
       return { branch: targetBranch };
-    } catch (e: any) {
-      console.error(`Reset failed for ${targetDir}`, e);
-      throw new Error(`Reset failed for ${targetDir}: ${e.message}`);
+    } catch (error: any) {
+      console.error(`Reset failed for ${targetDir}`, error);
+      throw new Error(`Reset failed for ${targetDir}: ${error.message}`);
     }
   }
 
@@ -444,8 +444,8 @@ export class GitService {
    */
   sanitizeRepoName(url: string): string {
     try {
-      const u = new URL(url);
-      const parts = u.pathname.split('/').filter(Boolean);
+      const parsedUrl = new URL(url);
+      const parts = parsedUrl.pathname.split('/').filter(Boolean);
       let name = parts.slice(-1)[0] || 'repo';
       if (name.endsWith('.git')) name = name.slice(0, -4);
       return (parts.slice(-2).join('-') || name).replace(/[^a-zA-Z0-9_-]/g, '-');
@@ -479,9 +479,9 @@ export class GitService {
    * @returns True if the directory is under the repos base, false otherwise.
    */
   private isUnderRepos(dir: string): boolean {
-    const d = this.norm(dir);
-    const b = this.reposBase.endsWith('/') ? this.reposBase : `${this.reposBase}/`;
-    return d === this.reposBase || d.startsWith(b);
+    const targetDir = this.norm(dir);
+    const baseWithTrailingSlash = this.reposBase.endsWith('/') ? this.reposBase : `${this.reposBase}/`;
+    return targetDir === this.reposBase || targetDir.startsWith(baseWithTrailingSlash);
   }
 
   /**
