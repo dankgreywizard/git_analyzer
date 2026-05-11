@@ -58,7 +58,7 @@ A modern web application that combines local AI capabilities with Git repository
 ### Frontend
 - **React 19**: Component-based UI library using modern patterns (Hooks, Layouts).
 - **Custom Hooks**: Encapsulated logic in `useGit`, `useChat`, `useModels`, and `useChatHistory`. All hooks use descriptive variable naming for improved code clarity.
-- **Tailwind CSS v4**: Utility-first styling with the latest features.
+- **Tailwind CSS v4.3**: Utility-first styling with the latest features.
 - **Animations**: AOS (Animate On Scroll), Animate.css, and Framer Motion.
 - **Vite 8**: Ultra-fast frontend tooling and development server.
 - **PostCSS**: CSS transformation and Autoprefixer.
